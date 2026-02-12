@@ -16,7 +16,7 @@ jobs:
 
       - name: Configure CMake (Ninja)
         run: |
-          cmake -S . -B build -G "Ninja" -A x64 -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: |
