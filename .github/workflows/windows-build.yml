@@ -1,0 +1,40 @@
+name: Build Windows DLLs
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    name: Build (Windows) and publish DLLs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CMake (Ninja)
+        run: |
+          cmake -S . -B build -G "Ninja" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cmake --build build --config Release -- -j 2
+
+      - name: Collect DLLs
+        shell: pwsh
+        run: |
+          $out = "artifacts"
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          Get-ChildItem -Path build -Recurse -Filter '*.dll' -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item $_.FullName -Destination $out -Force
+          }
+          Write-Host "DLLs copied to $out:";
+          Get-ChildItem -Path $out -Recurse -File | ForEach-Object { Write-Host $_.FullName }
+
+      - name: Upload DLL artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-dlls
+          path: artifacts
