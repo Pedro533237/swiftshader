@@ -114,7 +114,11 @@ void llvm::report_fatal_error(const Twine &Reason, bool GenCrashDiag) {
     raw_svector_ostream OS(Buffer);
     OS << "LLVM ERROR: " << Reason << "\n";
     StringRef MessageStr = OS.str();
+#if defined(_MSC_VER)
+    ssize_t written = _write(2, MessageStr.data(), MessageStr.size());
+#else
     ssize_t written = ::write(2, MessageStr.data(), MessageStr.size());
+#endif
     (void)written; // If something went wrong, we deliberately just give up.
   }
 
