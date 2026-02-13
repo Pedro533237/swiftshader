@@ -19,11 +19,21 @@ jobs:
         with:
           cmake-version: '3.24'
 
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt', 'src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-
+
       - name: Configure CMake (Visual Studio 2022)
         run: |
           cmake -S . -B build `
             -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DSWIFTSHADER_WARNINGS_AS_ERRORS=0 `
             -DSWIFTSHADER_DCHECK_ALWAYS_ON=0 `
             -DREACTOR_VERIFY_LLVM_IR=0 `
@@ -43,7 +53,7 @@ jobs:
           Get-ChildItem -Path build -Recurse -Filter '*.dll' -ErrorAction SilentlyContinue | ForEach-Object {
             Copy-Item $_.FullName -Destination $out -Force
           }
-          Write-Host "DLLs copied to $out:";
+          Write-Host "DLLs copied to ${out}:"
           Get-ChildItem -Path $out -Recurse -File | ForEach-Object { Write-Host $_.FullName }
 
       - name: Upload DLL artifacts
