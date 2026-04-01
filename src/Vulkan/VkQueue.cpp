@@ -28,6 +28,7 @@
 #include "marl/thread.h"
 #include "marl/trace.h"
 
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 
@@ -213,6 +214,16 @@ void Queue::garbageCollect()
 #ifndef __ANDROID__
 VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
+	static std::atomic<uint32_t> presentCount{ 0 };
+	static const uint32_t presentWarmupFrames = [] {
+		constexpr uint32_t kDefaultWarmupFrames = 240;
+		const char *warmup = std::getenv("SWIFTSHADER_VK_PRESENT_WARMUP_FRAMES");
+		if(!warmup) { return kDefaultWarmupFrames; }
+		char *end = nullptr;
+		const auto value = std::strtoul(warmup, &end, 10);
+		return (end && (*end == '\0')) ? static_cast<uint32_t>(value) : kDefaultWarmupFrames;
+	}();
+
 	static const bool skipPresentWaitIdle = [] {
 		const char *skip = std::getenv("SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE");
 		return skip && (std::strcmp(skip, "0") != 0);
@@ -239,10 +250,14 @@ VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 	//    and only serialize with the queue thread.
 	//  - otherwise keep conservative waitIdle() fallback.
 	//
+	// During app startup/loading we keep the conservative path for a number of
+	// frames to minimize risk of regressions in initialization sequences.
+	//
 	// Overrides:
 	//  SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE=1 -> always waitIdle()
 	//  SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE=1  -> never waitIdle()
-	if(forcePresentWaitIdle || (!skipPresentWaitIdle && !hasOnlyBinaryWaitSemaphores))
+	const bool startupWarmup = (presentCount.fetch_add(1, std::memory_order_relaxed) < presentWarmupFrames);
+	if(forcePresentWaitIdle || startupWarmup || (!skipPresentWaitIdle && !hasOnlyBinaryWaitSemaphores))
 	{
 		waitIdle();
 	}

@@ -51,6 +51,8 @@ For present-path troubleshooting on Windows, SwiftShader supports optional envir
 `SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE=1` (always force conservative present idle sync),
 `SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE=1` (always skip present idle sync), and
 `SWIFTSHADER_VK_WIN32_GDI_FASTPATH=1` (enable the optional GDI fast path).
+You can also tune startup behavior with `SWIFTSHADER_VK_PRESENT_WARMUP_FRAMES=<N>`
+to keep conservative present sync for the first `N` frames (default: `240`).
 
 Contributing
 ------------
