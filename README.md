@@ -26,6 +26,11 @@ Android and Chrome (OS) build environments are also supported.
   ./vk-unittests
   ```
   Tip: Set the [CMAKE_BUILD_PARALLEL_LEVEL](https://cmake.org/cmake/help/latest/envvar/CMAKE_BUILD_PARALLEL_LEVEL.html) environment variable to control the level of parallelism.
+  Tip: Incremental builds are fastest with Ninja + compiler cache. By default SwiftShader now auto-detects `sccache`/`ccache` and configures it as a compiler launcher so unchanged files are reused from cache and only modified translation units are rebuilt.
+  ```
+  cmake -G Ninja -S . -B build -DSWIFTSHADER_ENABLE_COMPILER_CACHE=ON
+  cmake --build build --parallel
+  ```
 
 
 * **Visual Studio**

@@ -28,6 +28,7 @@
 #include "marl/thread.h"
 #include "marl/trace.h"
 
+#include <cstdlib>
 #include <cstring>
 
 namespace vk {
@@ -192,6 +193,11 @@ void Queue::garbageCollect()
 #ifndef __ANDROID__
 VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
+	static const bool forcePresentWaitIdle = [] {
+		const char *force = std::getenv("SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE");
+		return force && (std::strcmp(force, "0") != 0);
+	}();
+
 	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
 	{
 		auto *semaphore = vk::DynamicCast<BinarySemaphore>(presentInfo->pWaitSemaphores[i]);
@@ -201,13 +207,17 @@ VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 		}
 	}
 
-	// This is a hack to deal with screen tearing for now.
-	// Need to correctly implement threading using VkSemaphore
-	// to get rid of it. b/132458423
+	// Legacy fallback to avoid tearing for applications that don't provide
+	// present wait semaphores.
 	//
-	// Wait on semaphores first so queue work can make progress while the client
-	// thread is blocked, reducing the idle wait window on low-core CPUs.
-	waitIdle();
+	// For correctly synchronized apps (e.g. Minecraft through modern Vulkan
+	// paths), avoid an unconditional queue-wide idle which can make the app look
+	// unresponsive on low-core CPUs. Set SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE=1
+	// to force the old behavior for troubleshooting.
+	if(forcePresentWaitIdle || (presentInfo->waitSemaphoreCount == 0))
+	{
+		waitIdle();
+	}
 
 	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
 	// mode is currently ignored by SwiftShader.

@@ -110,12 +110,23 @@ if ((CMAKE_GENERATOR MATCHES "Visual Studio") AND (CMAKE_GENERATOR_TOOLSET STREQ
                   "host compiler, pass -Thost=x64 on the CMake command line.")
 endif()
 
-# Use CCache if available
-find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-    message(STATUS "Using ccache")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+option(SWIFTSHADER_ENABLE_COMPILER_CACHE "Use ccache/sccache as compiler launcher for faster incremental builds" ON)
+
+# Use compiler cache if available. Prefer CMAKE_*_COMPILER_LAUNCHER over
+# RULE_LAUNCH_* so generated rules are explicit and easier to diagnose.
+if(SWIFTSHADER_ENABLE_COMPILER_CACHE)
+    find_program(SWIFTSHADER_COMPILER_CACHE_PROGRAM NAMES sccache ccache)
+    if(SWIFTSHADER_COMPILER_CACHE_PROGRAM)
+        message(STATUS "Using compiler cache: ${SWIFTSHADER_COMPILER_CACHE_PROGRAM}")
+        set(CMAKE_C_COMPILER_LAUNCHER "${SWIFTSHADER_COMPILER_CACHE_PROGRAM}" CACHE STRING "C compiler launcher" FORCE)
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${SWIFTSHADER_COMPILER_CACHE_PROGRAM}" CACHE STRING "CXX compiler launcher" FORCE)
+
+        # Improve cache hits for out-of-tree/incremental builds in different paths.
+        if(SWIFTSHADER_COMPILER_CACHE_PROGRAM MATCHES "ccache$")
+            set(ENV{CCACHE_BASEDIR} "${CMAKE_SOURCE_DIR}")
+            set(ENV{CCACHE_NOHASHDIR} "true")
+        endif()
+    endif()
 endif()
 
 ###########################################################
