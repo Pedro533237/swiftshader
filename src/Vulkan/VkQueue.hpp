@@ -53,6 +53,7 @@ public:
 
 	VkResult submit(uint32_t submitCount, SubmitInfo *pSubmits, Fence *fence);
 	VkResult waitIdle();
+	VkResult waitPending();
 #ifndef __ANDROID__
 	VkResult present(const VkPresentInfoKHR *presentInfo);
 #endif
@@ -71,7 +72,8 @@ private:
 		enum Type
 		{
 			KILL_THREAD,
-			SUBMIT_QUEUE
+			SUBMIT_QUEUE,
+			NOTIFY_THREAD
 		};
 		Type type = SUBMIT_QUEUE;
 	};

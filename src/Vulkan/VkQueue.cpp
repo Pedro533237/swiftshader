@@ -156,6 +156,12 @@ void Queue::taskLoop(marl::Scheduler *scheduler)
 		case Task::SUBMIT_QUEUE:
 			submitQueue(task);
 			break;
+		case Task::NOTIFY_THREAD:
+			if(task.events)
+			{
+				task.events->done();
+			}
+			break;
 		default:
 			UNREACHABLE("task.type %d", static_cast<int>(task.type));
 			break;
@@ -177,6 +183,20 @@ VkResult Queue::waitIdle()
 
 	garbageCollect();
 
+	return VK_SUCCESS;
+}
+
+VkResult Queue::waitPending()
+{
+	auto event = std::make_shared<sw::CountedEvent>();
+	event->add();
+
+	Task task;
+	task.type = Task::NOTIFY_THREAD;
+	task.events = event;
+	pending.put(task);
+
+	event->wait();
 	return VK_SUCCESS;
 }
 
@@ -215,8 +235,8 @@ VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 	}
 
 	// Auto mode:
-	//  - if present has binary wait semaphores, rely on those and avoid queue-wide
-	//    idle stall inside vkQueuePresentKHR (reduces JNI.callPPI() wall time).
+	//  - if present has binary wait semaphores, avoid queue-wide renderer sync
+	//    and only serialize with the queue thread.
 	//  - otherwise keep conservative waitIdle() fallback.
 	//
 	// Overrides:
@@ -225,6 +245,10 @@ VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 	if(forcePresentWaitIdle || (!skipPresentWaitIdle && !hasOnlyBinaryWaitSemaphores))
 	{
 		waitIdle();
+	}
+	else
+	{
+		waitPending();
 	}
 
 	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
