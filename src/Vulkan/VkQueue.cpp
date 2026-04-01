@@ -193,10 +193,17 @@ void Queue::garbageCollect()
 #ifndef __ANDROID__
 VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
-	static const bool forcePresentWaitIdle = [] {
-		const char *force = std::getenv("SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE");
-		return force && (std::strcmp(force, "0") != 0);
+	static const bool skipPresentWaitIdle = [] {
+		const char *skip = std::getenv("SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE");
+		return skip && (std::strcmp(skip, "0") != 0);
 	}();
+
+	// Keep conservative synchronization by default to avoid regressions in
+	// applications that are sensitive to present timing.
+	if(!skipPresentWaitIdle)
+	{
+		waitIdle();
+	}
 
 	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
 	{
@@ -205,18 +212,6 @@ VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 		{
 			semaphore->wait();
 		}
-	}
-
-	// Legacy fallback to avoid tearing for applications that don't provide
-	// present wait semaphores.
-	//
-	// For correctly synchronized apps (e.g. Minecraft through modern Vulkan
-	// paths), avoid an unconditional queue-wide idle which can make the app look
-	// unresponsive on low-core CPUs. Set SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE=1
-	// to force the old behavior for troubleshooting.
-	if(forcePresentWaitIdle || (presentInfo->waitSemaphoreCount == 0))
-	{
-		waitIdle();
 	}
 
 	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
