@@ -197,21 +197,34 @@ VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 		const char *skip = std::getenv("SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE");
 		return skip && (std::strcmp(skip, "0") != 0);
 	}();
+	static const bool forcePresentWaitIdle = [] {
+		const char *force = std::getenv("SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE");
+		return force && (std::strcmp(force, "0") != 0);
+	}();
 
-	// Keep conservative synchronization by default to avoid regressions in
-	// applications that are sensitive to present timing.
-	if(!skipPresentWaitIdle)
-	{
-		waitIdle();
-	}
-
+	bool hasOnlyBinaryWaitSemaphores = (presentInfo->waitSemaphoreCount != 0);
 	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
 	{
 		auto *semaphore = vk::DynamicCast<BinarySemaphore>(presentInfo->pWaitSemaphores[i]);
-		if(semaphore)
+		if(!semaphore)
 		{
-			semaphore->wait();
+			hasOnlyBinaryWaitSemaphores = false;
+			continue;
 		}
+		semaphore->wait();
+	}
+
+	// Auto mode:
+	//  - if present has binary wait semaphores, rely on those and avoid queue-wide
+	//    idle stall inside vkQueuePresentKHR (reduces JNI.callPPI() wall time).
+	//  - otherwise keep conservative waitIdle() fallback.
+	//
+	// Overrides:
+	//  SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE=1 -> always waitIdle()
+	//  SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE=1  -> never waitIdle()
+	if(forcePresentWaitIdle || (!skipPresentWaitIdle && !hasOnlyBinaryWaitSemaphores))
+	{
+		waitIdle();
 	}
 
 	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present

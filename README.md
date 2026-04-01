@@ -48,7 +48,8 @@ On Windows, most applications can be made to use SwiftShader's DLLs by placing t
 In general, Vulkan applications look for a shared library named `vulkan-1.dll` on Windows (`vulkan-1.so` on Linux). This 'loader' library then redirects API calls to the actual Installable Client Driver (ICD). SwiftShader's ICD is named `libvk_swiftshader.dll`, but it can be renamed to `vulkan-1.dll` to be loaded directly by the application. Alternatively, you can set the `VK_ICD_FILENAMES` environment variable to the path to `vk_swiftshader_icd.json` file that is generated under the build directory (e.g. `.\SwiftShader\build\Windows\vk_swiftshader_icd.json`). To learn more about how Vulkan loading works, read the [official documentation here](https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md).
 
 For present-path troubleshooting on Windows, SwiftShader supports optional environment toggles:
-`SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE=1` (disable conservative present idle sync) and
+`SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE=1` (always force conservative present idle sync),
+`SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE=1` (always skip present idle sync), and
 `SWIFTSHADER_VK_WIN32_GDI_FASTPATH=1` (enable the optional GDI fast path).
 
 Contributing
