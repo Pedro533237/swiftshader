@@ -192,18 +192,6 @@ void Queue::garbageCollect()
 #ifndef __ANDROID__
 VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
-	// Legacy fallback to avoid tearing for applications that don't provide any
-	// present wait semaphores. If wait semaphores are provided, rely on them
-	// instead of unconditionally stalling the whole queue.
-	const bool needsQueueIdleHack = (presentInfo->waitSemaphoreCount == 0);
-	if(needsQueueIdleHack)
-	{
-		waitIdle();
-	}
-
-	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
-	// mode is currently ignored by SwiftShader.
-
 	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
 	{
 		auto *semaphore = vk::DynamicCast<BinarySemaphore>(presentInfo->pWaitSemaphores[i]);
@@ -212,6 +200,17 @@ VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 			semaphore->wait();
 		}
 	}
+
+	// This is a hack to deal with screen tearing for now.
+	// Need to correctly implement threading using VkSemaphore
+	// to get rid of it. b/132458423
+	//
+	// Wait on semaphores first so queue work can make progress while the client
+	// thread is blocked, reducing the idle wait window on low-core CPUs.
+	waitIdle();
+
+	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
+	// mode is currently ignored by SwiftShader.
 
 	const auto *presentFences = vk::GetExtendedStruct<VkSwapchainPresentFenceInfoEXT>(presentInfo->pNext, VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT);
 
