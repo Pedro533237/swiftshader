@@ -19,6 +19,7 @@
 #include "Device/Renderer.hpp"
 #include "System/Synchronization.hpp"
 
+#include <atomic>
 #include <thread>
 
 namespace marl {
@@ -53,7 +54,6 @@ public:
 
 	VkResult submit(uint32_t submitCount, SubmitInfo *pSubmits, Fence *fence);
 	VkResult waitIdle();
-	VkResult waitPending();
 #ifndef __ANDROID__
 	VkResult present(const VkPresentInfoKHR *presentInfo);
 #endif
@@ -72,8 +72,7 @@ private:
 		enum Type
 		{
 			KILL_THREAD,
-			SUBMIT_QUEUE,
-			NOTIFY_THREAD
+			SUBMIT_QUEUE
 		};
 		Type type = SUBMIT_QUEUE;
 	};
@@ -84,6 +83,7 @@ private:
 
 	Device *device;
 	std::unique_ptr<sw::Renderer> renderer;
+	std::atomic<bool> hasOutstandingWork = false;
 	sw::Chan<Task> pending;
 	sw::Chan<SubmitInfo *> toDelete;
 	std::thread queueThread;

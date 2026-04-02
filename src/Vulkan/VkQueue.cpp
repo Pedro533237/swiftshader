@@ -28,10 +28,6 @@
 #include "marl/thread.h"
 #include "marl/trace.h"
 
-#include <atomic>
-#include <cstdlib>
-#include <cstring>
-
 namespace vk {
 
 Queue::Queue(Device *device, marl::Scheduler *scheduler)
@@ -103,6 +99,7 @@ void Queue::submitQueue(const Task &task)
 			executionState.events = task.events.get();
 			for(uint32_t j = 0; j < submitInfo.commandBufferCount; j++)
 			{
+				hasOutstandingWork.store(true, std::memory_order_relaxed);
 				Cast(submitInfo.pCommandBuffers[j])->submit(executionState);
 			}
 		}
@@ -134,7 +131,10 @@ void Queue::submitQueue(const Task &task)
 	{
 		// TODO: fix renderer signaling so that work submitted separately from (but before) a fence
 		// is guaranteed complete by the time the fence signals.
-		renderer->synchronize();
+		if(renderer && hasOutstandingWork.exchange(false, std::memory_order_relaxed))
+		{
+			renderer->synchronize();
+		}
 		task.events->done();
 	}
 }
@@ -156,12 +156,6 @@ void Queue::taskLoop(marl::Scheduler *scheduler)
 			return;
 		case Task::SUBMIT_QUEUE:
 			submitQueue(task);
-			break;
-		case Task::NOTIFY_THREAD:
-			if(task.events)
-			{
-				task.events->done();
-			}
 			break;
 		default:
 			UNREACHABLE("task.type %d", static_cast<int>(task.type));
@@ -187,20 +181,6 @@ VkResult Queue::waitIdle()
 	return VK_SUCCESS;
 }
 
-VkResult Queue::waitPending()
-{
-	auto event = std::make_shared<sw::CountedEvent>();
-	event->add();
-
-	Task task;
-	task.type = Task::NOTIFY_THREAD;
-	task.events = event;
-	pending.put(task);
-
-	event->wait();
-	return VK_SUCCESS;
-}
-
 void Queue::garbageCollect()
 {
 	while(true)
@@ -214,56 +194,17 @@ void Queue::garbageCollect()
 #ifndef __ANDROID__
 VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
-	static std::atomic<uint32_t> presentCount{ 0 };
-	static const uint32_t presentWarmupFrames = [] {
-		constexpr uint32_t kDefaultWarmupFrames = 240;
-		const char *warmup = std::getenv("SWIFTSHADER_VK_PRESENT_WARMUP_FRAMES");
-		if(!warmup) { return kDefaultWarmupFrames; }
-		char *end = nullptr;
-		const auto value = std::strtoul(warmup, &end, 10);
-		return (end && (*end == '\0')) ? static_cast<uint32_t>(value) : kDefaultWarmupFrames;
-	}();
+	// Conservative synchronization to preserve compatibility with complex mod
+	// stacks that are sensitive to present timing.
+	waitIdle();
 
-	static const bool skipPresentWaitIdle = [] {
-		const char *skip = std::getenv("SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE");
-		return skip && (std::strcmp(skip, "0") != 0);
-	}();
-	static const bool forcePresentWaitIdle = [] {
-		const char *force = std::getenv("SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE");
-		return force && (std::strcmp(force, "0") != 0);
-	}();
-
-	bool hasOnlyBinaryWaitSemaphores = (presentInfo->waitSemaphoreCount != 0);
 	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
 	{
 		auto *semaphore = vk::DynamicCast<BinarySemaphore>(presentInfo->pWaitSemaphores[i]);
-		if(!semaphore)
+		if(semaphore)
 		{
-			hasOnlyBinaryWaitSemaphores = false;
-			continue;
+			semaphore->wait();
 		}
-		semaphore->wait();
-	}
-
-	// Auto mode:
-	//  - if present has binary wait semaphores, avoid queue-wide renderer sync
-	//    and only serialize with the queue thread.
-	//  - otherwise keep conservative waitIdle() fallback.
-	//
-	// During app startup/loading we keep the conservative path for a number of
-	// frames to minimize risk of regressions in initialization sequences.
-	//
-	// Overrides:
-	//  SWIFTSHADER_VK_FORCE_PRESENT_WAITIDLE=1 -> always waitIdle()
-	//  SWIFTSHADER_VK_SKIP_PRESENT_WAITIDLE=1  -> never waitIdle()
-	const bool startupWarmup = (presentCount.fetch_add(1, std::memory_order_relaxed) < presentWarmupFrames);
-	if(forcePresentWaitIdle || startupWarmup || (!skipPresentWaitIdle && !hasOnlyBinaryWaitSemaphores))
-	{
-		waitIdle();
-	}
-	else
-	{
-		waitPending();
 	}
 
 	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
