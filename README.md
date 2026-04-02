@@ -31,6 +31,8 @@ Android and Chrome (OS) build environments are also supported.
   cmake -G Ninja -S . -B build -DSWIFTSHADER_ENABLE_COMPILER_CACHE=ON
   cmake --build build --parallel
   ```
+  Optional CPU-overhead reduction mode for Java/LWJGL-heavy workloads:
+  `-DSWIFTSHADER_VK_AGGRESSIVE_BATCHING=ON`
 
 
 * **Visual Studio**

@@ -1815,6 +1815,7 @@ void CommandBuffer::resetState()
 {
 	// FIXME (b/119409619): replace this vector by an allocator so we can control all memory allocations
 	commands.clear();
+	recordStateCache = {};
 
 	state = INITIAL;
 }
@@ -1944,6 +1945,19 @@ void CommandBuffer::bindPipeline(VkPipelineBindPoint pipelineBindPoint, Pipeline
 	{
 	case VK_PIPELINE_BIND_POINT_COMPUTE:
 	case VK_PIPELINE_BIND_POINT_GRAPHICS:
+#if SWIFTSHADER_VK_AGGRESSIVE_BATCHING
+		{
+			const uint32_t bindPointIndex = static_cast<uint32_t>(pipelineBindPoint);
+			if(bindPointIndex < 2 && recordStateCache.boundPipelines[bindPointIndex] == pipeline)
+			{
+				return;
+			}
+			if(bindPointIndex < 2)
+			{
+				recordStateCache.boundPipelines[bindPointIndex] = pipeline;
+			}
+		}
+#endif
 		addCommand<::CmdPipelineBind>(pipelineBindPoint, pipeline);
 		break;
 	default:
@@ -1957,10 +1971,32 @@ void CommandBuffer::bindVertexBuffers(uint32_t firstBinding, uint32_t bindingCou
 {
 	for(uint32_t i = 0; i < bindingCount; ++i)
 	{
-		addCommand<::CmdVertexBufferBind>(i + firstBinding, vk::Cast(pBuffers[i]), pOffsets[i],
-		                                  pSizes ? pSizes[i] : 0,
-		                                  pStrides ? pStrides[i] : 0,
-		                                  pStrides);
+		const uint32_t binding = i + firstBinding;
+		auto *buffer = vk::Cast(pBuffers[i]);
+		const VkDeviceSize offset = pOffsets[i];
+		const VkDeviceSize size = pSizes ? pSizes[i] : 0;
+		const VkDeviceSize stride = pStrides ? pStrides[i] : 0;
+		const bool hasStride = (pStrides != nullptr);
+
+#if SWIFTSHADER_VK_AGGRESSIVE_BATCHING
+		if(binding < MAX_VERTEX_INPUT_BINDINGS)
+		{
+			const auto &cached = recordStateCache.vertexBindings[binding];
+			if(cached.valid &&
+			   cached.buffer == buffer &&
+			   cached.offset == offset &&
+			   cached.size == size &&
+			   cached.stride == stride &&
+			   cached.hasStride == hasStride)
+			{
+				continue;
+			}
+
+			recordStateCache.vertexBindings[binding] = { buffer, offset, size, stride, hasStride, true };
+		}
+#endif
+
+		addCommand<::CmdVertexBufferBind>(binding, buffer, offset, size, stride, pStrides);
 	}
 }
 
@@ -2160,6 +2196,20 @@ void CommandBuffer::bindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, co
 
 void CommandBuffer::bindIndexBuffer(Buffer *buffer, VkDeviceSize offset, VkIndexType indexType)
 {
+#if SWIFTSHADER_VK_AGGRESSIVE_BATCHING
+	if(recordStateCache.indexValid &&
+	   recordStateCache.indexBuffer == buffer &&
+	   recordStateCache.indexOffset == offset &&
+	   recordStateCache.indexType == indexType)
+	{
+		return;
+	}
+
+	recordStateCache.indexBuffer = buffer;
+	recordStateCache.indexOffset = offset;
+	recordStateCache.indexType = indexType;
+	recordStateCache.indexValid = true;
+#endif
 	addCommand<::CmdIndexBufferBind>(buffer, offset, indexType);
 }
 

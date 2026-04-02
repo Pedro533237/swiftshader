@@ -35,6 +35,10 @@ namespace vk {
 #define SWIFTSHADER_DEVICE_NAME "SwiftShader Device"  // Max length: VK_MAX_PHYSICAL_DEVICE_NAME_SIZE
 #define SWIFTSHADER_UUID "SwiftShaderUUID"            // Max length: VK_UUID_SIZE (16)
 
+#ifndef SWIFTSHADER_VK_AGGRESSIVE_BATCHING
+#	define SWIFTSHADER_VK_AGGRESSIVE_BATCHING 0
+#endif
+
 constexpr spv_target_env SPIRV_VERSION = SPV_ENV_VULKAN_1_3;
 
 constexpr uint32_t API_VERSION = VK_API_VERSION_1_3;

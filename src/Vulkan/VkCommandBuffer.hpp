@@ -247,6 +247,25 @@ private:
 	State state = INITIAL;
 	VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
+	struct RecordStateCache
+	{
+		Pipeline *boundPipelines[2] = { nullptr, nullptr };
+		struct VertexBinding
+		{
+			Buffer *buffer = nullptr;
+			VkDeviceSize offset = 0;
+			VkDeviceSize size = 0;
+			VkDeviceSize stride = 0;
+			bool hasStride = false;
+			bool valid = false;
+		};
+		VertexBinding vertexBindings[MAX_VERTEX_INPUT_BINDINGS] = {};
+		Buffer *indexBuffer = nullptr;
+		VkDeviceSize indexOffset = 0;
+		VkIndexType indexType = VK_INDEX_TYPE_MAX_ENUM;
+		bool indexValid = false;
+	} recordStateCache;
+
 	// FIXME (b/119409619): replace this vector by an allocator so we can control all memory allocations
 	std::vector<std::unique_ptr<Command>> commands;
 };

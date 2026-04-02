@@ -111,6 +111,7 @@ if ((CMAKE_GENERATOR MATCHES "Visual Studio") AND (CMAKE_GENERATOR_TOOLSET STREQ
 endif()
 
 option(SWIFTSHADER_ENABLE_COMPILER_CACHE "Use ccache/sccache as compiler launcher for faster incremental builds" ON)
+option(SWIFTSHADER_VK_AGGRESSIVE_BATCHING "Enable aggressive Vulkan command recording dedup/batching optimizations" OFF)
 
 # Use compiler cache if available. Prefer CMAKE_*_COMPILER_LAUNCHER over
 # RULE_LAUNCH_* so generated rules are explicit and easier to diagnose.

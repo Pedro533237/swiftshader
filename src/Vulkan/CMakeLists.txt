@@ -179,6 +179,7 @@ target_compile_options(vk_swiftshader
 target_compile_definitions(vk_swiftshader
     PRIVATE
         "VK_EXPORT="
+        SWIFTSHADER_VK_AGGRESSIVE_BATCHING=$<BOOL:${SWIFTSHADER_VK_AGGRESSIVE_BATCHING}>
         $<$<CONFIG:Debug>:"DEBUGGER_WAIT_DIALOG">
 )
 
