@@ -264,6 +264,14 @@ private:
 		VkDeviceSize indexOffset = 0;
 		VkIndexType indexType = VK_INDEX_TYPE_MAX_ENUM;
 		bool indexValid = false;
+		struct DescriptorBinding
+		{
+			const PipelineLayout *layout = nullptr;
+			VkDescriptorSet descriptorSets[MAX_BOUND_DESCRIPTOR_SETS] = { VK_NULL_HANDLE };
+			uint32_t dynamicOffsets[MAX_DESCRIPTOR_SET_COMBINED_BUFFERS_DYNAMIC] = {};
+			bool valid = false;
+		};
+		DescriptorBinding descriptorBindings[2] = {};
 	} recordStateCache;
 
 	// FIXME (b/119409619): replace this vector by an allocator so we can control all memory allocations
