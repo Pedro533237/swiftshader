@@ -28,6 +28,9 @@
 #include "marl/thread.h"
 #include "marl/trace.h"
 
+#include <cstdlib>
+#include <cstring>
+
 namespace vk {
 
 Queue::Queue(Device *device, marl::Scheduler *scheduler)
@@ -194,9 +197,16 @@ void Queue::garbageCollect()
 #ifndef __ANDROID__
 VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
-	// Conservative synchronization to preserve compatibility with complex mod
-	// stacks that are sensitive to present timing.
-	waitIdle();
+	static const bool forceWaitIdlePresentPath = [] {
+		const char *opt = std::getenv("SWIFTSHADER_VK_PRESENT_WAIT_IDLE");
+		return opt && (std::strcmp(opt, "0") != 0);
+	}();
+
+	if(forceWaitIdlePresentPath)
+	{
+		// Compatibility mode for applications that rely on fully synchronous present timing.
+		waitIdle();
+	}
 
 	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
 	{
