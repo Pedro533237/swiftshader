@@ -2214,6 +2214,12 @@ void Blitter::copy(const vk::Image *src, uint8_t *dst, unsigned int dstPitch)
 	const uint8_t *s = (uint8_t *)src->getTexelPointer({ 0, 0, 0 }, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 });
 	uint8_t *d = dst;
 
+	if(srcPitch == rowBytes && dstPitch == rowBytes)
+	{
+		memcpy(d, s, rowBytes * extent.height);
+		return;
+	}
+
 	for(uint32_t y = 0; y < extent.height; y++)
 	{
 		memcpy(d, s, rowBytes);

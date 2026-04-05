@@ -26,6 +26,13 @@ Android and Chrome (OS) build environments are also supported.
   ./vk-unittests
   ```
   Tip: Set the [CMAKE_BUILD_PARALLEL_LEVEL](https://cmake.org/cmake/help/latest/envvar/CMAKE_BUILD_PARALLEL_LEVEL.html) environment variable to control the level of parallelism.
+  Tip: Incremental builds are fastest with Ninja + compiler cache. By default SwiftShader now auto-detects `sccache`/`ccache` and configures it as a compiler launcher so unchanged files are reused from cache and only modified translation units are rebuilt.
+  ```
+  cmake -G Ninja -S . -B build -DSWIFTSHADER_ENABLE_COMPILER_CACHE=ON
+  cmake --build build --parallel
+  ```
+  Optional CPU-overhead reduction mode for Java/LWJGL-heavy workloads:
+  `-DSWIFTSHADER_VK_AGGRESSIVE_BATCHING=ON`
 
 
 * **Visual Studio**
@@ -41,6 +48,10 @@ The SwiftShader libraries act as drop-in replacements for graphics drivers.
 On Windows, most applications can be made to use SwiftShader's DLLs by placing them in the same folder as the executable. On Linux, the `LD_LIBRARY_PATH` environment variable or `-rpath` linker option can be used to direct applications to search for shared libraries in the indicated directory first.
 
 In general, Vulkan applications look for a shared library named `vulkan-1.dll` on Windows (`vulkan-1.so` on Linux). This 'loader' library then redirects API calls to the actual Installable Client Driver (ICD). SwiftShader's ICD is named `libvk_swiftshader.dll`, but it can be renamed to `vulkan-1.dll` to be loaded directly by the application. Alternatively, you can set the `VK_ICD_FILENAMES` environment variable to the path to `vk_swiftshader_icd.json` file that is generated under the build directory (e.g. `.\SwiftShader\build\Windows\vk_swiftshader_icd.json`). To learn more about how Vulkan loading works, read the [official documentation here](https://github.com/KhronosGroup/Vulkan-Loader/blob/master/loader/LoaderAndLayerInterface.md).
+
+For present-path troubleshooting on Windows, SwiftShader supports an optional
+environment toggle: `SWIFTSHADER_VK_WIN32_GDI_FASTPATH=1` (enable the optional
+GDI fast path).
 
 Contributing
 ------------

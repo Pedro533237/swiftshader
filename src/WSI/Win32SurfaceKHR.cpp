@@ -17,6 +17,7 @@
 #include "System/Debug.hpp"
 #include "Vulkan/VkDeviceMemory.hpp"
 
+#include <cstdlib>
 #include <string.h>
 
 namespace {
@@ -107,7 +108,23 @@ VkResult Win32SurfaceKHR::present(PresentImage *image)
 	bitmapInfo.bmiHeader.biCompression = BI_RGB;
 
 	void *bits = image->getImage()->getTexelPointer({ 0, 0, 0 }, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 });
-	StretchDIBits(windowContext, 0, 0, extent.width, extent.height, 0, 0, extent.width, extent.height, bits, &bitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+
+	static const bool useFastGDIPath = [] {
+		const char *opt = std::getenv("SWIFTSHADER_VK_WIN32_GDI_FASTPATH");
+		return opt && (std::strcmp(opt, "0") != 0);
+	}();
+	const int tightlyPackedStride = static_cast<int>(extent.width) * bytesPerPixel;
+	if(useFastGDIPath && (stride == tightlyPackedStride))
+	{
+		// Optional fast path when no scaling and rows are tightly packed.
+		bitmapInfo.bmiHeader.biWidth = extent.width;
+		SetDIBitsToDevice(windowContext, 0, 0, extent.width, extent.height, 0, 0, 0, extent.height, bits, &bitmapInfo, DIB_RGB_COLORS);
+	}
+	else
+	{
+		// Conservative default path.
+		StretchDIBits(windowContext, 0, 0, extent.width, extent.height, 0, 0, extent.width, extent.height, bits, &bitmapInfo, DIB_RGB_COLORS, SRCCOPY);
+	}
 
 	return VK_SUCCESS;
 }
