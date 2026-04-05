@@ -226,6 +226,8 @@ public:
 	public:
 		virtual void execute(ExecutionState &executionState) = 0;
 		virtual std::string description() = 0;
+		virtual bool tryMergeDraw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) { return false; }
+		virtual bool tryMergeDrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) { return false; }
 		virtual ~Command() {}
 	};
 

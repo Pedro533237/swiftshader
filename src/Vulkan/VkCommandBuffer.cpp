@@ -1030,8 +1030,24 @@ public:
 
 	std::string description() override { return "vkCmdDraw()"; }
 
+	bool tryMergeDraw(uint32_t mergeVertexCount, uint32_t mergeInstanceCount, uint32_t mergeFirstVertex, uint32_t mergeFirstInstance) override
+	{
+		if(instanceCount != mergeInstanceCount || firstInstance != mergeFirstInstance)
+		{
+			return false;
+		}
+
+		if((firstVertex + vertexCount) != mergeFirstVertex)
+		{
+			return false;
+		}
+
+		vertexCount += mergeVertexCount;
+		return true;
+	}
+
 private:
-	const uint32_t vertexCount;
+	uint32_t vertexCount;
 	const uint32_t instanceCount;
 	const uint32_t firstVertex;
 	const uint32_t firstInstance;
@@ -1056,8 +1072,24 @@ public:
 
 	std::string description() override { return "vkCmdDrawIndexed()"; }
 
+	bool tryMergeDrawIndexed(uint32_t mergeIndexCount, uint32_t mergeInstanceCount, uint32_t mergeFirstIndex, int32_t mergeVertexOffset, uint32_t mergeFirstInstance) override
+	{
+		if(instanceCount != mergeInstanceCount || firstInstance != mergeFirstInstance || vertexOffset != mergeVertexOffset)
+		{
+			return false;
+		}
+
+		if((firstIndex + indexCount) != mergeFirstIndex)
+		{
+			return false;
+		}
+
+		indexCount += mergeIndexCount;
+		return true;
+	}
+
 private:
-	const uint32_t indexCount;
+	uint32_t indexCount;
 	const uint32_t instanceCount;
 	const uint32_t firstIndex;
 	const int32_t vertexOffset;
@@ -2432,11 +2464,21 @@ void CommandBuffer::waitEvents(uint32_t eventCount, const VkEvent *pEvents, cons
 
 void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
+	if(!commands.empty() && commands.back()->tryMergeDraw(vertexCount, instanceCount, firstVertex, firstInstance))
+	{
+		return;
+	}
+
 	addCommand<::CmdDraw>(vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
 void CommandBuffer::drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
 {
+	if(!commands.empty() && commands.back()->tryMergeDrawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance))
+	{
+		return;
+	}
+
 	addCommand<::CmdDrawIndexed>(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
