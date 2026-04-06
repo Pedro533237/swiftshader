@@ -1030,24 +1030,8 @@ public:
 
 	std::string description() override { return "vkCmdDraw()"; }
 
-	bool tryMergeDraw(uint32_t mergeVertexCount, uint32_t mergeInstanceCount, uint32_t mergeFirstVertex, uint32_t mergeFirstInstance) override
-	{
-		if(instanceCount != mergeInstanceCount || firstInstance != mergeFirstInstance)
-		{
-			return false;
-		}
-
-		if((firstVertex + vertexCount) != mergeFirstVertex)
-		{
-			return false;
-		}
-
-		vertexCount += mergeVertexCount;
-		return true;
-	}
-
 private:
-	uint32_t vertexCount;
+	const uint32_t vertexCount;
 	const uint32_t instanceCount;
 	const uint32_t firstVertex;
 	const uint32_t firstInstance;
@@ -1072,24 +1056,8 @@ public:
 
 	std::string description() override { return "vkCmdDrawIndexed()"; }
 
-	bool tryMergeDrawIndexed(uint32_t mergeIndexCount, uint32_t mergeInstanceCount, uint32_t mergeFirstIndex, int32_t mergeVertexOffset, uint32_t mergeFirstInstance) override
-	{
-		if(instanceCount != mergeInstanceCount || firstInstance != mergeFirstInstance || vertexOffset != mergeVertexOffset)
-		{
-			return false;
-		}
-
-		if((firstIndex + indexCount) != mergeFirstIndex)
-		{
-			return false;
-		}
-
-		indexCount += mergeIndexCount;
-		return true;
-	}
-
 private:
-	uint32_t indexCount;
+	const uint32_t indexCount;
 	const uint32_t instanceCount;
 	const uint32_t firstIndex;
 	const int32_t vertexOffset;
@@ -1847,7 +1815,6 @@ void CommandBuffer::resetState()
 {
 	// FIXME (b/119409619): replace this vector by an allocator so we can control all memory allocations
 	commands.clear();
-	recordStateCache = {};
 
 	state = INITIAL;
 }
@@ -1977,19 +1944,6 @@ void CommandBuffer::bindPipeline(VkPipelineBindPoint pipelineBindPoint, Pipeline
 	{
 	case VK_PIPELINE_BIND_POINT_COMPUTE:
 	case VK_PIPELINE_BIND_POINT_GRAPHICS:
-#if SWIFTSHADER_AGGRESSIVE_BATCHING
-		{
-			const uint32_t bindPointIndex = static_cast<uint32_t>(pipelineBindPoint);
-			if(bindPointIndex < 2 && recordStateCache.boundPipelines[bindPointIndex] == pipeline)
-			{
-				return;
-			}
-			if(bindPointIndex < 2)
-			{
-				recordStateCache.boundPipelines[bindPointIndex] = pipeline;
-			}
-		}
-#endif
 		addCommand<::CmdPipelineBind>(pipelineBindPoint, pipeline);
 		break;
 	default:
@@ -2003,32 +1957,10 @@ void CommandBuffer::bindVertexBuffers(uint32_t firstBinding, uint32_t bindingCou
 {
 	for(uint32_t i = 0; i < bindingCount; ++i)
 	{
-		const uint32_t binding = i + firstBinding;
-		auto *buffer = vk::Cast(pBuffers[i]);
-		const VkDeviceSize offset = pOffsets[i];
-		const VkDeviceSize size = pSizes ? pSizes[i] : 0;
-		const VkDeviceSize stride = pStrides ? pStrides[i] : 0;
-		const bool hasStride = (pStrides != nullptr);
-
-#if SWIFTSHADER_AGGRESSIVE_BATCHING
-		if(binding < MAX_VERTEX_INPUT_BINDINGS)
-		{
-			const auto &cached = recordStateCache.vertexBindings[binding];
-			if(cached.valid &&
-			   cached.buffer == buffer &&
-			   cached.offset == offset &&
-			   cached.size == size &&
-			   cached.stride == stride &&
-			   cached.hasStride == hasStride)
-			{
-				continue;
-			}
-
-			recordStateCache.vertexBindings[binding] = { buffer, offset, size, stride, hasStride, true };
-		}
-#endif
-
-		addCommand<::CmdVertexBufferBind>(binding, buffer, offset, size, stride, pStrides);
+		addCommand<::CmdVertexBufferBind>(i + firstBinding, vk::Cast(pBuffers[i]), pOffsets[i],
+		                                  pSizes ? pSizes[i] : 0,
+		                                  pStrides ? pStrides[i] : 0,
+		                                  pStrides);
 	}
 }
 
@@ -2221,41 +2153,6 @@ void CommandBuffer::bindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, co
 
 	auto firstDynamicOffset = (dynamicOffsetCount != 0) ? pipelineLayout->getDynamicOffsetIndex(firstSet, 0) : 0;
 
-#if SWIFTSHADER_AGGRESSIVE_BATCHING
-	const uint32_t bindPointIndex = static_cast<uint32_t>(pipelineBindPoint);
-	if(bindPointIndex < 2)
-	{
-		auto &cached = recordStateCache.descriptorBindings[bindPointIndex];
-		bool redundantBind = cached.valid && (cached.layout == pipelineLayout);
-
-		for(uint32_t i = 0; redundantBind && (i < descriptorSetCount); i++)
-		{
-			redundantBind = (cached.descriptorSets[firstSet + i] == pDescriptorSets[i]);
-		}
-
-		for(uint32_t i = 0; redundantBind && (i < dynamicOffsetCount); i++)
-		{
-			redundantBind = (cached.dynamicOffsets[firstDynamicOffset + i] == pDynamicOffsets[i]);
-		}
-
-		if(redundantBind)
-		{
-			return;
-		}
-
-		cached.layout = pipelineLayout;
-		cached.valid = true;
-		for(uint32_t i = 0; i < descriptorSetCount; i++)
-		{
-			cached.descriptorSets[firstSet + i] = pDescriptorSets[i];
-		}
-		for(uint32_t i = 0; i < dynamicOffsetCount; i++)
-		{
-			cached.dynamicOffsets[firstDynamicOffset + i] = pDynamicOffsets[i];
-		}
-	}
-#endif
-
 	addCommand<::CmdBindDescriptorSets>(
 	    pipelineBindPoint, firstSet, descriptorSetCount, pDescriptorSets,
 	    firstDynamicOffset, dynamicOffsetCount, pDynamicOffsets);
@@ -2263,20 +2160,6 @@ void CommandBuffer::bindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, co
 
 void CommandBuffer::bindIndexBuffer(Buffer *buffer, VkDeviceSize offset, VkIndexType indexType)
 {
-#if SWIFTSHADER_AGGRESSIVE_BATCHING
-	if(recordStateCache.indexValid &&
-	   recordStateCache.indexBuffer == buffer &&
-	   recordStateCache.indexOffset == offset &&
-	   recordStateCache.indexType == indexType)
-	{
-		return;
-	}
-
-	recordStateCache.indexBuffer = buffer;
-	recordStateCache.indexOffset = offset;
-	recordStateCache.indexType = indexType;
-	recordStateCache.indexValid = true;
-#endif
 	addCommand<::CmdIndexBufferBind>(buffer, offset, indexType);
 }
 
@@ -2464,21 +2347,11 @@ void CommandBuffer::waitEvents(uint32_t eventCount, const VkEvent *pEvents, cons
 
 void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
-	if(!commands.empty() && commands.back()->tryMergeDraw(vertexCount, instanceCount, firstVertex, firstInstance))
-	{
-		return;
-	}
-
 	addCommand<::CmdDraw>(vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
 void CommandBuffer::drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
 {
-	if(!commands.empty() && commands.back()->tryMergeDrawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance))
-	{
-		return;
-	}
-
 	addCommand<::CmdDrawIndexed>(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 

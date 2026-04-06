@@ -226,8 +226,6 @@ public:
 	public:
 		virtual void execute(ExecutionState &executionState) = 0;
 		virtual std::string description() = 0;
-		virtual bool tryMergeDraw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) { return false; }
-		virtual bool tryMergeDrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) { return false; }
 		virtual ~Command() {}
 	};
 
@@ -248,33 +246,6 @@ private:
 	Device *const device;
 	State state = INITIAL;
 	VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-
-	struct RecordStateCache
-	{
-		Pipeline *boundPipelines[2] = { nullptr, nullptr };
-		struct VertexBinding
-		{
-			Buffer *buffer = nullptr;
-			VkDeviceSize offset = 0;
-			VkDeviceSize size = 0;
-			VkDeviceSize stride = 0;
-			bool hasStride = false;
-			bool valid = false;
-		};
-		VertexBinding vertexBindings[MAX_VERTEX_INPUT_BINDINGS] = {};
-		Buffer *indexBuffer = nullptr;
-		VkDeviceSize indexOffset = 0;
-		VkIndexType indexType = VK_INDEX_TYPE_MAX_ENUM;
-		bool indexValid = false;
-		struct DescriptorBinding
-		{
-			const PipelineLayout *layout = nullptr;
-			VkDescriptorSet descriptorSets[MAX_BOUND_DESCRIPTOR_SETS] = { VK_NULL_HANDLE };
-			uint32_t dynamicOffsets[MAX_DESCRIPTOR_SET_COMBINED_BUFFERS_DYNAMIC] = {};
-			bool valid = false;
-		};
-		DescriptorBinding descriptorBindings[2] = {};
-	} recordStateCache;
 
 	// FIXME (b/119409619): replace this vector by an allocator so we can control all memory allocations
 	std::vector<std::unique_ptr<Command>> commands;

@@ -107,19 +107,7 @@ VkResult Win32SurfaceKHR::present(PresentImage *image)
 	bitmapInfo.bmiHeader.biCompression = BI_RGB;
 
 	void *bits = image->getImage()->getTexelPointer({ 0, 0, 0 }, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 });
-
-	const int tightlyPackedStride = static_cast<int>(extent.width) * bytesPerPixel;
-	if(stride == tightlyPackedStride)
-	{
-		// Fast path when no scaling is required and rows are tightly packed.
-		bitmapInfo.bmiHeader.biWidth = extent.width;
-		SetDIBitsToDevice(windowContext, 0, 0, extent.width, extent.height, 0, 0, 0, extent.height, bits, &bitmapInfo, DIB_RGB_COLORS);
-	}
-	else
-	{
-		// Conservative default path.
-		StretchDIBits(windowContext, 0, 0, extent.width, extent.height, 0, 0, extent.width, extent.height, bits, &bitmapInfo, DIB_RGB_COLORS, SRCCOPY);
-	}
+	StretchDIBits(windowContext, 0, 0, extent.width, extent.height, 0, 0, extent.width, extent.height, bits, &bitmapInfo, DIB_RGB_COLORS, SRCCOPY);
 
 	return VK_SUCCESS;
 }

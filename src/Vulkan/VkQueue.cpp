@@ -28,7 +28,6 @@
 #include "marl/thread.h"
 #include "marl/trace.h"
 
-#include <cstdlib>
 #include <cstring>
 
 namespace vk {
@@ -102,7 +101,6 @@ void Queue::submitQueue(const Task &task)
 			executionState.events = task.events.get();
 			for(uint32_t j = 0; j < submitInfo.commandBufferCount; j++)
 			{
-				hasOutstandingWork.store(true, std::memory_order_relaxed);
 				Cast(submitInfo.pCommandBuffers[j])->submit(executionState);
 			}
 		}
@@ -134,10 +132,7 @@ void Queue::submitQueue(const Task &task)
 	{
 		// TODO: fix renderer signaling so that work submitted separately from (but before) a fence
 		// is guaranteed complete by the time the fence signals.
-		if(renderer && hasOutstandingWork.exchange(false, std::memory_order_relaxed))
-		{
-			renderer->synchronize();
-		}
+		renderer->synchronize();
 		task.events->done();
 	}
 }
@@ -197,28 +192,19 @@ void Queue::garbageCollect()
 #ifndef __ANDROID__
 VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
-	static const bool forceWaitIdlePresentPath = [] {
-		const char *opt = std::getenv("SWIFTSHADER_VK_PRESENT_WAIT_IDLE");
-		return opt && (std::strcmp(opt, "0") != 0);
-	}();
+	// This is a hack to deal with screen tearing for now.
+	// Need to correctly implement threading using VkSemaphore
+	// to get rid of it. b/132458423
+	waitIdle();
 
-	if(forceWaitIdlePresentPath)
-	{
-		// Compatibility mode for applications that rely on fully synchronous present timing.
-		waitIdle();
-	}
+	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
+	// mode is currently ignored by SwiftShader.
 
 	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
 	{
 		auto *semaphore = vk::DynamicCast<BinarySemaphore>(presentInfo->pWaitSemaphores[i]);
-		if(semaphore)
-		{
-			semaphore->wait();
-		}
+		semaphore->wait();
 	}
-
-	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
-	// mode is currently ignored by SwiftShader.
 
 	const auto *presentFences = vk::GetExtendedStruct<VkSwapchainPresentFenceInfoEXT>(presentInfo->pNext, VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT);
 
