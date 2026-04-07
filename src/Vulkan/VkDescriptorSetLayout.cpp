@@ -167,7 +167,7 @@ size_t DescriptorSetLayout::getDescriptorSetDataSize(const uint32_t *variableDes
 	return size;
 }
 
-void DescriptorSetLayout::initialize(DescriptorSet *descriptorSet, const uint32_t *variableDescriptorCount)
+void DescriptorSetLayout::initialize(DescriptorSet *descriptorSet, const uint32_t *variableDescriptorCount) const
 {
 	ASSERT(descriptorSet->header.layout == nullptr);
 
