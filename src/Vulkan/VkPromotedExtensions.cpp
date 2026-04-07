@@ -34,6 +34,7 @@
 // VK_KHR_maintenance2 (no functions in this extension)
 // VK_KHR_maintenance3
 // VK_KHR_multiview (no functions in this extension)
+// VK_KHR_push_descriptor
 // VK_KHR_relaxed_block_layout (no functions in this extension)
 // VK_KHR_sampler_ycbcr_conversion
 // VK_KHR_shader_draw_parameters (no functions in this extension)
@@ -201,6 +202,12 @@ VKAPI_ATTR void VKAPI_CALL vkTrimCommandPoolKHR(VkDevice device, VkCommandPool c
 VKAPI_ATTR void VKAPI_CALL vkGetDescriptorSetLayoutSupportKHR(VkDevice device, const VkDescriptorSetLayoutCreateInfo *pCreateInfo, VkDescriptorSetLayoutSupport *pSupport)
 {
 	vkGetDescriptorSetLayoutSupport(device, pCreateInfo, pSupport);
+}
+
+// VK_KHR_push_descriptor
+VKAPI_ATTR void VKAPI_CALL vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites)
+{
+	vkCmdPushDescriptorSet(commandBuffer, pipelineBindPoint, layout, set, descriptorWriteCount, pDescriptorWrites);
 }
 
 // VK_KHR_sampler_ycbcr_conversion

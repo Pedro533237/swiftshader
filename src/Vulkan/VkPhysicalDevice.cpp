@@ -888,6 +888,12 @@ static void getMaintenance4Properties(T *properties)
 	properties->maxBufferSize = MAX_MEMORY_ALLOCATION_SIZE;
 }
 
+template<typename T>
+static void getPushDescriptorProperties(T *properties)
+{
+	properties->maxPushDescriptors = 32;
+}
+
 void PhysicalDevice::getProperties(VkPhysicalDeviceMaintenance3Properties *properties) const
 {
 	getMaintenance3Properties(properties);
@@ -896,6 +902,11 @@ void PhysicalDevice::getProperties(VkPhysicalDeviceMaintenance3Properties *prope
 void PhysicalDevice::getProperties(VkPhysicalDeviceMaintenance4Properties *properties) const
 {
 	getMaintenance4Properties(properties);
+}
+
+void PhysicalDevice::getProperties(VkPhysicalDevicePushDescriptorProperties *properties) const
+{
+	getPushDescriptorProperties(properties);
 }
 
 template<typename T>
