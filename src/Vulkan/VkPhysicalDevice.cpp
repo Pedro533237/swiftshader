@@ -166,6 +166,11 @@ static void getPhysicalDeviceLineRasterizationFeaturesEXT(T *features)
 	features->stippledSmoothLines = VK_FALSE;
 }
 
+static void getPhysicalDeviceMultiDrawFeaturesEXT(VkPhysicalDeviceMultiDrawFeaturesEXT *features)
+{
+	features->multiDraw = VK_TRUE;
+}
+
 template<typename T>
 static void getPhysicalDeviceProvokingVertexFeaturesEXT(T *features)
 {
@@ -566,6 +571,9 @@ void PhysicalDevice::getFeatures2(VkPhysicalDeviceFeatures2 *features) const
 			break;
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT:
 			getPhysicalDeviceLineRasterizationFeaturesEXT(reinterpret_cast<VkPhysicalDeviceLineRasterizationFeaturesEXT *>(curExtension));
+			break;
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT:
+			getPhysicalDeviceMultiDrawFeaturesEXT(reinterpret_cast<VkPhysicalDeviceMultiDrawFeaturesEXT *>(curExtension));
 			break;
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES:
 			getPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR(reinterpret_cast<VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures *>(curExtension));
@@ -1588,6 +1596,12 @@ bool PhysicalDevice::hasExtendedFeatures(const VkPhysicalDeviceLineRasterization
 	       CheckFeature(requested, supported, stippledRectangularLines) &&
 	       CheckFeature(requested, supported, stippledBresenhamLines) &&
 	       CheckFeature(requested, supported, stippledSmoothLines);
+}
+
+bool PhysicalDevice::hasExtendedFeatures(const VkPhysicalDeviceMultiDrawFeaturesEXT *requested) const
+{
+	auto supported = getSupportedFeatures(requested);
+	return CheckFeature(requested, supported, multiDraw);
 }
 
 bool PhysicalDevice::hasExtendedFeatures(const VkPhysicalDeviceExtendedDynamicState2FeaturesEXT *requested) const

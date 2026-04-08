@@ -115,6 +115,8 @@ global:
 	vkCmdBindVertexBuffers;
 	vkCmdDraw;
 	vkCmdDrawIndexed;
+	vkCmdDrawMultiEXT;
+	vkCmdDrawMultiIndexedEXT;
 	vkCmdDrawIndirect;
 	vkCmdDrawIndexedIndirect;
 	vkCmdDispatch;

@@ -581,6 +581,13 @@ static const std::vector<std::pair<const char *, std::unordered_map<std::string,
 	    {
 	        MAKE_VULKAN_DEVICE_ENTRY(vkCmdSetLineStippleEXT),
 	    } },
+	// VK_EXT_multi_draw
+	{
+	    VK_EXT_MULTI_DRAW_EXTENSION_NAME,
+	    {
+	        MAKE_VULKAN_DEVICE_ENTRY(vkCmdDrawMultiEXT),
+	        MAKE_VULKAN_DEVICE_ENTRY(vkCmdDrawMultiIndexedEXT),
+	    } },
 	// VK_EXT_host_query_reset
 	{
 	    VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,
