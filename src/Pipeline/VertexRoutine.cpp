@@ -216,7 +216,7 @@ Vector4f VertexRoutine::readStream(Pointer<Byte> &buffer, UInt &stride, const St
 	case VK_FORMAT_R32_SFLOAT:
 	case VK_FORMAT_R32G32_SFLOAT:
 	case VK_FORMAT_R32G32B32_SFLOAT:
-	case VK_FORMAT_R32G32B32A32_SFLOAT:
+		case VK_FORMAT_R32G32B32A32_SFLOAT:
 		{
 			if(componentCount == 0)
 			{
@@ -241,10 +241,81 @@ Vector4f VertexRoutine::readStream(Pointer<Byte> &buffer, UInt &stride, const St
 					transpose4xN(v.x, v.y, v.z, v.w, componentCount);
 				}
 			}
-		}
-		break;
-	case VK_FORMAT_B8G8R8A8_UNORM:
-		bgra = true;
+			}
+			break;
+		case VK_FORMAT_B8G8R8_UNORM:
+		case VK_FORMAT_B8G8R8_SNORM:
+		case VK_FORMAT_B8G8R8_USCALED:
+		case VK_FORMAT_B8G8R8_SSCALED:
+		case VK_FORMAT_B8G8R8_UINT:
+		case VK_FORMAT_B8G8R8_SINT:
+		case VK_FORMAT_B8G8R8_SRGB:
+			bgra = true;
+			// [[fallthrough]]
+		case VK_FORMAT_R8G8B8_UNORM:
+		case VK_FORMAT_R8G8B8_SNORM:
+		case VK_FORMAT_R8G8B8_USCALED:
+		case VK_FORMAT_R8G8B8_SSCALED:
+		case VK_FORMAT_R8G8B8_UINT:
+		case VK_FORMAT_R8G8B8_SINT:
+		case VK_FORMAT_R8G8B8_SRGB:
+			{
+				switch(stream.format)
+				{
+				case VK_FORMAT_R8G8B8_SNORM:
+				case VK_FORMAT_B8G8R8_SNORM:
+					v.x.x = Float(*Pointer<SByte>(source0 + 0));
+					v.x.y = Float(*Pointer<SByte>(source1 + 0));
+					v.x.z = Float(*Pointer<SByte>(source2 + 0));
+					v.x.w = Float(*Pointer<SByte>(source3 + 0));
+					v.y.x = Float(*Pointer<SByte>(source0 + 1));
+					v.y.y = Float(*Pointer<SByte>(source1 + 1));
+					v.y.z = Float(*Pointer<SByte>(source2 + 1));
+					v.y.w = Float(*Pointer<SByte>(source3 + 1));
+					v.z.x = Float(*Pointer<SByte>(source0 + 2));
+					v.z.y = Float(*Pointer<SByte>(source1 + 2));
+					v.z.z = Float(*Pointer<SByte>(source2 + 2));
+					v.z.w = Float(*Pointer<SByte>(source3 + 2));
+					v.x = Max(v.x * Float4(1.0f / 0x7F), Float4(-1.0f));
+					v.y = Max(v.y * Float4(1.0f / 0x7F), Float4(-1.0f));
+					v.z = Max(v.z * Float4(1.0f / 0x7F), Float4(-1.0f));
+					break;
+				case VK_FORMAT_R8G8B8_SINT:
+				case VK_FORMAT_B8G8R8_SINT:
+				case VK_FORMAT_R8G8B8_SSCALED:
+				case VK_FORMAT_B8G8R8_SSCALED:
+					v.x.x = As<Float>(Int(*Pointer<SByte>(source0 + 0)));
+					v.x.y = As<Float>(Int(*Pointer<SByte>(source1 + 0)));
+					v.x.z = As<Float>(Int(*Pointer<SByte>(source2 + 0)));
+					v.x.w = As<Float>(Int(*Pointer<SByte>(source3 + 0)));
+					v.y.x = As<Float>(Int(*Pointer<SByte>(source0 + 1)));
+					v.y.y = As<Float>(Int(*Pointer<SByte>(source1 + 1)));
+					v.y.z = As<Float>(Int(*Pointer<SByte>(source2 + 1)));
+					v.y.w = As<Float>(Int(*Pointer<SByte>(source3 + 1)));
+					v.z.x = As<Float>(Int(*Pointer<SByte>(source0 + 2)));
+					v.z.y = As<Float>(Int(*Pointer<SByte>(source1 + 2)));
+					v.z.z = As<Float>(Int(*Pointer<SByte>(source2 + 2)));
+					v.z.w = As<Float>(Int(*Pointer<SByte>(source3 + 2)));
+					break;
+				default:  // UNORM/USCALED/UINT/SRGB
+					v.x = Float4(*Pointer<Byte>(source0 + 0), *Pointer<Byte>(source1 + 0), *Pointer<Byte>(source2 + 0), *Pointer<Byte>(source3 + 0));
+					v.y = Float4(*Pointer<Byte>(source0 + 1), *Pointer<Byte>(source1 + 1), *Pointer<Byte>(source2 + 1), *Pointer<Byte>(source3 + 1));
+					v.z = Float4(*Pointer<Byte>(source0 + 2), *Pointer<Byte>(source1 + 2), *Pointer<Byte>(source2 + 2), *Pointer<Byte>(source3 + 2));
+					if(stream.format == VK_FORMAT_R8G8B8_UNORM ||
+					   stream.format == VK_FORMAT_B8G8R8_UNORM ||
+					   stream.format == VK_FORMAT_R8G8B8_SRGB ||
+					   stream.format == VK_FORMAT_B8G8R8_SRGB)
+					{
+						v.x *= Float4(1.0f / 0xFF);
+						v.y *= Float4(1.0f / 0xFF);
+						v.z *= Float4(1.0f / 0xFF);
+					}
+					break;
+				}
+			}
+			break;
+		case VK_FORMAT_B8G8R8A8_UNORM:
+			bgra = true;
 		// [[fallthrough]]
 	case VK_FORMAT_R8_UNORM:
 	case VK_FORMAT_R8G8_UNORM:
