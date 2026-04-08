@@ -298,18 +298,18 @@ Vector4f VertexRoutine::readStream(Pointer<Byte> &buffer, UInt &stride, const St
 					v.z.w = As<Float>(Int(*Pointer<SByte>(source3 + 2)));
 					break;
 				default:  // UNORM/USCALED/UINT/SRGB
-					v.x.x = As<Float>(UInt(*Pointer<Byte>(source0 + 0)));
-					v.x.y = As<Float>(UInt(*Pointer<Byte>(source1 + 0)));
-					v.x.z = As<Float>(UInt(*Pointer<Byte>(source2 + 0)));
-					v.x.w = As<Float>(UInt(*Pointer<Byte>(source3 + 0)));
-					v.y.x = As<Float>(UInt(*Pointer<Byte>(source0 + 1)));
-					v.y.y = As<Float>(UInt(*Pointer<Byte>(source1 + 1)));
-					v.y.z = As<Float>(UInt(*Pointer<Byte>(source2 + 1)));
-					v.y.w = As<Float>(UInt(*Pointer<Byte>(source3 + 1)));
-					v.z.x = As<Float>(UInt(*Pointer<Byte>(source0 + 2)));
-					v.z.y = As<Float>(UInt(*Pointer<Byte>(source1 + 2)));
-					v.z.z = As<Float>(UInt(*Pointer<Byte>(source2 + 2)));
-					v.z.w = As<Float>(UInt(*Pointer<Byte>(source3 + 2)));
+					v.x.x = As<Float>(Int(*Pointer<Byte>(source0 + 0)));
+					v.x.y = As<Float>(Int(*Pointer<Byte>(source1 + 0)));
+					v.x.z = As<Float>(Int(*Pointer<Byte>(source2 + 0)));
+					v.x.w = As<Float>(Int(*Pointer<Byte>(source3 + 0)));
+					v.y.x = As<Float>(Int(*Pointer<Byte>(source0 + 1)));
+					v.y.y = As<Float>(Int(*Pointer<Byte>(source1 + 1)));
+					v.y.z = As<Float>(Int(*Pointer<Byte>(source2 + 1)));
+					v.y.w = As<Float>(Int(*Pointer<Byte>(source3 + 1)));
+					v.z.x = As<Float>(Int(*Pointer<Byte>(source0 + 2)));
+					v.z.y = As<Float>(Int(*Pointer<Byte>(source1 + 2)));
+					v.z.z = As<Float>(Int(*Pointer<Byte>(source2 + 2)));
+					v.z.w = As<Float>(Int(*Pointer<Byte>(source3 + 2)));
 					if(stream.format == VK_FORMAT_R8G8B8_UNORM ||
 					   stream.format == VK_FORMAT_B8G8R8_UNORM ||
 					   stream.format == VK_FORMAT_R8G8B8_SRGB ||
