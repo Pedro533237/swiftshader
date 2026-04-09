@@ -111,10 +111,13 @@ EXPORTS
 	vkCmdSetStencilWriteMask
 	vkCmdSetStencilReference
 	vkCmdBindDescriptorSets
+	vkCmdPushDescriptorSet
 	vkCmdBindIndexBuffer
 	vkCmdBindVertexBuffers
 	vkCmdDraw
 	vkCmdDrawIndexed
+	vkCmdDrawMultiEXT
+	vkCmdDrawMultiIndexedEXT
 	vkCmdDrawIndirect
 	vkCmdDrawIndexedIndirect
 	vkCmdDispatch
@@ -214,6 +217,7 @@ EXPORTS
 	vkCreateDescriptorUpdateTemplate
 	vkDestroyDescriptorUpdateTemplate
 	vkUpdateDescriptorSetWithTemplate
+	vkCmdPushDescriptorSetKHR
 
 	; VK_KHR_get_display_properties2
 	;vkGetPhysicalDeviceDisplayProperties2KHR

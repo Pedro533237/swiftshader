@@ -291,6 +291,7 @@ static const std::unordered_map<std::string, PFN_vkVoidFunction> deviceFunctionP
 	MAKE_VULKAN_DEVICE_ENTRY(vkCmdSetStencilWriteMask),
 	MAKE_VULKAN_DEVICE_ENTRY(vkCmdSetStencilReference),
 	MAKE_VULKAN_DEVICE_ENTRY(vkCmdBindDescriptorSets),
+	MAKE_VULKAN_DEVICE_ENTRY(vkCmdPushDescriptorSet),
 	MAKE_VULKAN_DEVICE_ENTRY(vkCmdBindIndexBuffer),
 	MAKE_VULKAN_DEVICE_ENTRY(vkCmdBindVertexBuffers),
 	MAKE_VULKAN_DEVICE_ENTRY(vkCmdDraw),
@@ -427,6 +428,12 @@ static const std::vector<std::pair<const char *, std::unordered_map<std::string,
 	        MAKE_VULKAN_DEVICE_ENTRY(vkCreateDescriptorUpdateTemplateKHR),
 	        MAKE_VULKAN_DEVICE_ENTRY(vkDestroyDescriptorUpdateTemplateKHR),
 	        MAKE_VULKAN_DEVICE_ENTRY(vkUpdateDescriptorSetWithTemplateKHR),
+	    } },
+	// VK_KHR_push_descriptor
+	{
+	    VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+	    {
+	        MAKE_VULKAN_DEVICE_ENTRY(vkCmdPushDescriptorSetKHR),
 	    } },
 	// VK_KHR_device_group
 	{
@@ -573,6 +580,13 @@ static const std::vector<std::pair<const char *, std::unordered_map<std::string,
 	    VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME,
 	    {
 	        MAKE_VULKAN_DEVICE_ENTRY(vkCmdSetLineStippleEXT),
+	    } },
+	// VK_EXT_multi_draw
+	{
+	    VK_EXT_MULTI_DRAW_EXTENSION_NAME,
+	    {
+	        MAKE_VULKAN_DEVICE_ENTRY(vkCmdDrawMultiEXT),
+	        MAKE_VULKAN_DEVICE_ENTRY(vkCmdDrawMultiIndexedEXT),
 	    } },
 	// VK_EXT_host_query_reset
 	{

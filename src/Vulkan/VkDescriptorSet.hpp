@@ -30,7 +30,7 @@ class PipelineLayout;
 
 struct alignas(16) DescriptorSetHeader
 {
-	DescriptorSetLayout *layout;
+	const DescriptorSetLayout *layout;
 	marl::mutex mutex;
 };
 

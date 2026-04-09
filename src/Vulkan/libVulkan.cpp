@@ -361,6 +361,7 @@ static const ExtensionProperties deviceExtensionProperties[] = {
 	{ { VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME, VK_KHR_CREATE_RENDERPASS_2_SPEC_VERSION } },
 	{ { VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, VK_KHR_DEDICATED_ALLOCATION_SPEC_VERSION } },
 	{ { VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME, VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_SPEC_VERSION } },
+	{ { VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, VK_KHR_PUSH_DESCRIPTOR_SPEC_VERSION } },
 	{ { VK_KHR_DEVICE_GROUP_EXTENSION_NAME, VK_KHR_DEVICE_GROUP_SPEC_VERSION } },
 	{ { VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME, VK_KHR_EXTERNAL_FENCE_SPEC_VERSION } },
 	{ { VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_SPEC_VERSION } },
@@ -482,6 +483,7 @@ static const ExtensionProperties deviceExtensionProperties[] = {
 	{ { VK_EXT_PRIMITIVE_TOPOLOGY_LIST_RESTART_EXTENSION_NAME, VK_EXT_PRIMITIVE_TOPOLOGY_LIST_RESTART_SPEC_VERSION } },
 	{ { VK_EXT_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_EXTENSION_NAME, VK_EXT_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_SPEC_VERSION } },
 	{ { VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME, VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_SPEC_VERSION } },
+	{ { VK_EXT_MULTI_DRAW_EXTENSION_NAME, VK_EXT_MULTI_DRAW_SPEC_VERSION } },
 };
 
 static uint32_t numSupportedExtensions(const ExtensionProperties *extensionProperties, uint32_t extensionPropertiesCount)
@@ -914,6 +916,16 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, c
 			{
 				const auto *lineRasterizationFeatures = reinterpret_cast<const VkPhysicalDeviceLineRasterizationFeaturesEXT *>(extensionCreateInfo);
 				bool hasFeatures = vk::Cast(physicalDevice)->hasExtendedFeatures(lineRasterizationFeatures);
+				if(!hasFeatures)
+				{
+					return VK_ERROR_FEATURE_NOT_PRESENT;
+				}
+			}
+			break;
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT:
+			{
+				const auto *multiDrawFeatures = reinterpret_cast<const VkPhysicalDeviceMultiDrawFeaturesEXT *>(extensionCreateInfo);
+				bool hasFeatures = vk::Cast(physicalDevice)->hasExtendedFeatures(multiDrawFeatures);
 				if(!hasFeatures)
 				{
 					return VK_ERROR_FEATURE_NOT_PRESENT;
@@ -2970,6 +2982,14 @@ VKAPI_ATTR void VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer
 	vk::Cast(commandBuffer)->bindDescriptorSets(pipelineBindPoint, vk::Cast(layout), firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
 }
 
+VKAPI_ATTR void VKAPI_CALL vkCmdPushDescriptorSet(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites)
+{
+	TRACE("(VkCommandBuffer commandBuffer = %p, VkPipelineBindPoint pipelineBindPoint = %d, VkPipelineLayout layout = %p, uint32_t set = %d, uint32_t descriptorWriteCount = %d, const VkWriteDescriptorSet* pDescriptorWrites = %p)",
+	      commandBuffer, int(pipelineBindPoint), static_cast<void *>(layout), int(set), int(descriptorWriteCount), pDescriptorWrites);
+
+	vk::Cast(commandBuffer)->pushDescriptorSet(pipelineBindPoint, vk::Cast(layout), set, descriptorWriteCount, pDescriptorWrites);
+}
+
 VKAPI_ATTR void VKAPI_CALL vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType)
 {
 	TRACE("(VkCommandBuffer commandBuffer = %p, VkBuffer buffer = %p, VkDeviceSize offset = %d, VkIndexType indexType = %d)",
@@ -3145,6 +3165,35 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint3
 	      commandBuffer, int(indexCount), int(instanceCount), int(firstIndex), int(vertexOffset), int(firstInstance));
 
 	vk::Cast(commandBuffer)->drawIndexed(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+VKAPI_ATTR void VKAPI_CALL vkCmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const VkMultiDrawInfoEXT *pVertexInfo, uint32_t instanceCount, uint32_t firstInstance, uint32_t stride)
+{
+	TRACE("(VkCommandBuffer commandBuffer = %p, uint32_t drawCount = %d, const VkMultiDrawInfoEXT* pVertexInfo = %p, uint32_t instanceCount = %d, uint32_t firstInstance = %d, uint32_t stride = %d)",
+	      commandBuffer, int(drawCount), pVertexInfo, int(instanceCount), int(firstInstance), int(stride));
+
+	const uint32_t effectiveStride = (stride == 0) ? sizeof(VkMultiDrawInfoEXT) : stride;
+	const uint8_t *vertexInfo = reinterpret_cast<const uint8_t *>(pVertexInfo);
+	for(uint32_t i = 0; i < drawCount; i++)
+	{
+		const auto *info = reinterpret_cast<const VkMultiDrawInfoEXT *>(vertexInfo + i * effectiveStride);
+		vk::Cast(commandBuffer)->draw(info->vertexCount, instanceCount, info->firstVertex, firstInstance);
+	}
+}
+
+VKAPI_ATTR void VKAPI_CALL vkCmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const VkMultiDrawIndexedInfoEXT *pIndexInfo, uint32_t instanceCount, uint32_t firstInstance, uint32_t stride, const int32_t *pVertexOffset)
+{
+	TRACE("(VkCommandBuffer commandBuffer = %p, uint32_t drawCount = %d, const VkMultiDrawIndexedInfoEXT* pIndexInfo = %p, uint32_t instanceCount = %d, uint32_t firstInstance = %d, uint32_t stride = %d, const int32_t* pVertexOffset = %p)",
+	      commandBuffer, int(drawCount), pIndexInfo, int(instanceCount), int(firstInstance), int(stride), pVertexOffset);
+
+	const uint32_t effectiveStride = (stride == 0) ? sizeof(VkMultiDrawIndexedInfoEXT) : stride;
+	const uint8_t *indexInfo = reinterpret_cast<const uint8_t *>(pIndexInfo);
+	for(uint32_t i = 0; i < drawCount; i++)
+	{
+		const auto *info = reinterpret_cast<const VkMultiDrawIndexedInfoEXT *>(indexInfo + i * effectiveStride);
+		int32_t vertexOffset = pVertexOffset ? pVertexOffset[i] : 0;
+		vk::Cast(commandBuffer)->drawIndexed(info->indexCount, instanceCount, info->firstIndex, vertexOffset, firstInstance);
+	}
 }
 
 VKAPI_ATTR void VKAPI_CALL vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
@@ -3786,6 +3835,12 @@ VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceProperties2(VkPhysicalDevice physi
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES:
 			{
 				auto *properties = reinterpret_cast<VkPhysicalDeviceMaintenance3Properties *>(extensionProperties);
+				vk::Cast(physicalDevice)->getProperties(properties);
+			}
+			break;
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES:
+			{
+				auto *properties = reinterpret_cast<VkPhysicalDevicePushDescriptorProperties *>(extensionProperties);
 				vk::Cast(physicalDevice)->getProperties(properties);
 			}
 			break;

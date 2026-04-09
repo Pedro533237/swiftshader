@@ -39,6 +39,7 @@ public:
 	bool hasFeatures(const VkPhysicalDeviceFeatures &requestedFeatures) const;
 
 	bool hasExtendedFeatures(const VkPhysicalDeviceLineRasterizationFeaturesEXT *features) const;
+	bool hasExtendedFeatures(const VkPhysicalDeviceMultiDrawFeaturesEXT *features) const;
 	bool hasExtendedFeatures(const VkPhysicalDeviceProvokingVertexFeaturesEXT *features) const;
 	bool hasExtendedFeatures(const VkPhysicalDeviceVulkan11Features *features) const;
 	bool hasExtendedFeatures(const VkPhysicalDeviceVulkan12Features *features) const;
@@ -72,6 +73,7 @@ public:
 	void getProperties(VkPhysicalDeviceIDProperties *properties) const;
 	void getProperties(VkPhysicalDeviceMaintenance3Properties *properties) const;
 	void getProperties(VkPhysicalDeviceMaintenance4Properties *properties) const;
+	void getProperties(VkPhysicalDevicePushDescriptorProperties *properties) const;
 	void getProperties(VkPhysicalDeviceMultiviewProperties *properties) const;
 	void getProperties(VkPhysicalDevicePointClippingProperties *properties) const;
 	void getProperties(VkPhysicalDeviceProtectedMemoryProperties *properties) const;

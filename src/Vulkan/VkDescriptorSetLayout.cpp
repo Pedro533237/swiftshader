@@ -167,7 +167,7 @@ size_t DescriptorSetLayout::getDescriptorSetDataSize(const uint32_t *variableDes
 	return size;
 }
 
-void DescriptorSetLayout::initialize(DescriptorSet *descriptorSet, const uint32_t *variableDescriptorCount)
+void DescriptorSetLayout::initialize(DescriptorSet *descriptorSet, const uint32_t *variableDescriptorCount) const
 {
 	ASSERT(descriptorSet->header.layout == nullptr);
 
@@ -337,7 +337,7 @@ static void WriteTextureLevelInfo(sw::Texture *texture, uint32_t level, uint32_t
 
 void DescriptorSetLayout::WriteDescriptorSet(Device *device, DescriptorSet *dstSet, const VkDescriptorUpdateTemplateEntry &entry, const char *src)
 {
-	DescriptorSetLayout *dstLayout = dstSet->header.layout;
+	const DescriptorSetLayout *dstLayout = dstSet->header.layout;
 	const DescriptorSetLayout::Binding &binding = dstLayout->bindings[entry.dstBinding];
 	ASSERT(dstLayout);
 	ASSERT(binding.descriptorType == entry.descriptorType);
@@ -652,11 +652,11 @@ void DescriptorSetLayout::WriteDescriptorSet(Device *device, const VkWriteDescri
 void DescriptorSetLayout::CopyDescriptorSet(const VkCopyDescriptorSet &descriptorCopies)
 {
 	DescriptorSet *srcSet = vk::Cast(descriptorCopies.srcSet);
-	DescriptorSetLayout *srcLayout = srcSet->header.layout;
+	const DescriptorSetLayout *srcLayout = srcSet->header.layout;
 	ASSERT(srcLayout);
 
 	DescriptorSet *dstSet = vk::Cast(descriptorCopies.dstSet);
-	DescriptorSetLayout *dstLayout = dstSet->header.layout;
+	const DescriptorSetLayout *dstLayout = dstSet->header.layout;
 	ASSERT(dstLayout);
 
 	size_t srcTypeSize = 0;

@@ -150,6 +150,8 @@ public:
 	void bindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, const PipelineLayout *layout,
 	                        uint32_t firstSet, uint32_t descriptorSetCount, const VkDescriptorSet *pDescriptorSets,
 	                        uint32_t dynamicOffsetCount, const uint32_t *pDynamicOffsets);
+	void pushDescriptorSet(VkPipelineBindPoint pipelineBindPoint, const PipelineLayout *layout,
+	                       uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites);
 	void bindIndexBuffer(Buffer *buffer, VkDeviceSize offset, VkIndexType indexType);
 	void dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 	void dispatchIndirect(Buffer *buffer, VkDeviceSize offset);

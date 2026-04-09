@@ -40,6 +40,7 @@ public:
 	VkDescriptorType getDescriptorType(uint32_t setNumber, uint32_t bindingNumber) const;
 	uint32_t getDescriptorSize(uint32_t setNumber, uint32_t bindingNumber) const;
 	bool isDescriptorDynamic(uint32_t setNumber, uint32_t bindingNumber) const;
+	const DescriptorSetLayout *getDescriptorSetLayout(uint32_t setNumber) const;
 
 	const uint32_t identifier;
 
@@ -59,6 +60,7 @@ private:
 	{
 		Binding *bindings;
 		uint32_t bindingCount;
+		const DescriptorSetLayout *layout = nullptr;
 	};
 
 	DescriptorSet descriptorSets[MAX_BOUND_DESCRIPTOR_SETS];

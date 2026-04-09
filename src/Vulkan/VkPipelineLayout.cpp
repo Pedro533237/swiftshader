@@ -38,6 +38,7 @@ PipelineLayout::PipelineLayout(const VkPipelineLayoutCreateInfo *pCreateInfo, vo
 			continue;
 		}
 		const vk::DescriptorSetLayout *setLayout = vk::Cast(pCreateInfo->pSetLayouts[i]);
+		descriptorSets[i].layout = setLayout;
 		uint32_t bindingsArraySize = setLayout->getBindingsArraySize();
 		descriptorSets[i].bindings = bindingStorage;
 		bindingStorage += bindingsArraySize;
@@ -136,6 +137,12 @@ uint32_t PipelineLayout::getDescriptorSize(uint32_t setNumber, uint32_t bindingN
 bool PipelineLayout::isDescriptorDynamic(uint32_t setNumber, uint32_t bindingNumber) const
 {
 	return DescriptorSetLayout::IsDescriptorDynamic(getDescriptorType(setNumber, bindingNumber));
+}
+
+const DescriptorSetLayout *PipelineLayout::getDescriptorSetLayout(uint32_t setNumber) const
+{
+	ASSERT(setNumber < descriptorSetCount);
+	return descriptorSets[setNumber].layout;
 }
 
 uint32_t PipelineLayout::incRefCount()

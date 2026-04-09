@@ -106,7 +106,7 @@ public:
 
 	static void WriteDescriptorSet(Device *device, DescriptorSet *dstSet, const VkDescriptorUpdateTemplateEntry &entry, const char *src);
 
-	void initialize(DescriptorSet *descriptorSet, const uint32_t* variableDescriptorCount);
+	void initialize(DescriptorSet *descriptorSet, const uint32_t* variableDescriptorCount) const;
 
 	// Returns the total size of the descriptor set in bytes.
 	size_t getDescriptorSetAllocationSize(const uint32_t* variableDescriptorCount) const;

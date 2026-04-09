@@ -110,10 +110,13 @@ global:
 	vkCmdSetStencilWriteMask;
 	vkCmdSetStencilReference;
 	vkCmdBindDescriptorSets;
+	vkCmdPushDescriptorSet;
 	vkCmdBindIndexBuffer;
 	vkCmdBindVertexBuffers;
 	vkCmdDraw;
 	vkCmdDrawIndexed;
+	vkCmdDrawMultiEXT;
+	vkCmdDrawMultiIndexedEXT;
 	vkCmdDrawIndirect;
 	vkCmdDrawIndexedIndirect;
 	vkCmdDispatch;
@@ -225,6 +228,7 @@ global:
 	vkCreateDescriptorUpdateTemplate;
 	vkDestroyDescriptorUpdateTemplate;
 	vkUpdateDescriptorSetWithTemplate;
+	vkCmdPushDescriptorSetKHR;
 
 	# VK_KHR_get_display_properties2
 	#vkGetPhysicalDeviceDisplayProperties2KHR;

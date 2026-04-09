@@ -1566,6 +1566,49 @@ private:
 	vk::DescriptorSet::DynamicOffsets dynamicOffsets;
 };
 
+class CmdPushDescriptorSet : public vk::CommandBuffer::Command
+{
+public:
+	CmdPushDescriptorSet(vk::Device *device, VkPipelineBindPoint pipelineBindPoint, const vk::PipelineLayout *pipelineLayout,
+	                     uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites)
+	    : pipelineBindPoint(pipelineBindPoint)
+	    , set(set)
+	{
+		ASSERT(pipelineLayout);
+		const vk::DescriptorSetLayout *setLayout = pipelineLayout->getDescriptorSetLayout(set);
+		ASSERT(setLayout);
+
+		descriptorSetStorage.resize(setLayout->getDescriptorSetAllocationSize(nullptr), 0);
+		descriptorSet = new(descriptorSetStorage.data()) vk::DescriptorSet();
+		setLayout->initialize(descriptorSet, nullptr);
+
+		for(uint32_t i = 0; i < descriptorWriteCount; i++)
+		{
+			VkWriteDescriptorSet descriptorWrite = pDescriptorWrites[i];
+			descriptorWrite.dstSet = *descriptorSet;
+			vk::DescriptorSetLayout::WriteDescriptorSet(device, descriptorWrite);
+		}
+	}
+
+	void execute(vk::CommandBuffer::ExecutionState &executionState) override
+	{
+		ASSERT((size_t)pipelineBindPoint < executionState.pipelineState.size());
+		ASSERT(set < vk::MAX_BOUND_DESCRIPTOR_SETS);
+
+		auto &pipelineState = executionState.pipelineState[pipelineBindPoint];
+		pipelineState.descriptorSetObjects[set] = descriptorSet;
+		pipelineState.descriptorSets[set] = descriptorSet->getDataAddress();
+	}
+
+	std::string description() override { return "vkCmdPushDescriptorSetKHR()"; }
+
+private:
+	const VkPipelineBindPoint pipelineBindPoint;
+	const uint32_t set;
+	std::vector<uint8_t> descriptorSetStorage;
+	vk::DescriptorSet *descriptorSet = nullptr;
+};
+
 class CmdSetPushConstants : public vk::CommandBuffer::Command
 {
 public:
@@ -2227,6 +2270,20 @@ void CommandBuffer::bindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, co
 	addCommand<::CmdBindDescriptorSets>(
 	    pipelineBindPoint, firstSet, descriptorSetCount, pDescriptorSets,
 	    firstDynamicOffset, dynamicOffsetCount, pDynamicOffsets);
+}
+
+void CommandBuffer::pushDescriptorSet(VkPipelineBindPoint pipelineBindPoint, const PipelineLayout *pipelineLayout,
+                                      uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet *pDescriptorWrites)
+{
+	ASSERT(state == RECORDING);
+#if SWIFTSHADER_AGGRESSIVE_BATCHING
+	const uint32_t bindPointIndex = static_cast<uint32_t>(pipelineBindPoint);
+	if(bindPointIndex < 2)
+	{
+		recordStateCache.descriptorBindings[bindPointIndex].valid = false;
+	}
+#endif
+	addCommand<::CmdPushDescriptorSet>(device, pipelineBindPoint, pipelineLayout, set, descriptorWriteCount, pDescriptorWrites);
 }
 
 void CommandBuffer::bindIndexBuffer(Buffer *buffer, VkDeviceSize offset, VkIndexType indexType)
