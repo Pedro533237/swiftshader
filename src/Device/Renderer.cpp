@@ -38,6 +38,8 @@
 #include "marl/defer.h"
 #include "marl/trace.h"
 
+#include <cstdlib>
+
 #undef max
 
 #ifndef NDEBUG
@@ -46,6 +48,36 @@ unsigned int maxPrimitives = 1 << 21;
 #endif
 
 namespace sw {
+
+namespace {
+
+int getRoutineCacheSize()
+{
+	// Workloads with many material/shader variants (for example modded Minecraft)
+	// can churn routine caches aggressively at low capacities.
+	constexpr int kDefaultCacheSize = 4096;
+	constexpr int kMinCacheSize = 1;
+	constexpr int kMaxCacheSize = 65536;
+
+	const char *opt = std::getenv("SWIFTSHADER_ROUTINE_CACHE_SIZE");
+	if(!opt)
+	{
+		return kDefaultCacheSize;
+	}
+
+	char *end = nullptr;
+	long parsed = std::strtol(opt, &end, 10);
+	if(end == opt || *end != '\0')
+	{
+		return kDefaultCacheSize;
+	}
+
+	if(parsed < kMinCacheSize) { return kMinCacheSize; }
+	if(parsed > kMaxCacheSize) { return kMaxCacheSize; }
+	return static_cast<int>(parsed);
+}
+
+}  // namespace
 
 template<typename T>
 inline bool setBatchIndices(unsigned int batch[128][3], VkPrimitiveTopology topology, VkProvokingVertexModeEXT provokingVertexMode, T indices, unsigned int start, unsigned int triangleCount)
@@ -158,9 +190,10 @@ DrawCall::~DrawCall()
 Renderer::Renderer(vk::Device *device)
     : device(device)
 {
-	vertexProcessor.setRoutineCacheSize(1024);
-	pixelProcessor.setRoutineCacheSize(1024);
-	setupProcessor.setRoutineCacheSize(1024);
+	const int routineCacheSize = getRoutineCacheSize();
+	vertexProcessor.setRoutineCacheSize(routineCacheSize);
+	pixelProcessor.setRoutineCacheSize(routineCacheSize);
+	setupProcessor.setRoutineCacheSize(routineCacheSize);
 }
 
 Renderer::~Renderer()
