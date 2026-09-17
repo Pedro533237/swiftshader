@@ -1245,6 +1245,11 @@ void PhysicalDevice::getProperties(VkPhysicalDeviceLineRasterizationPropertiesEX
 	properties->lineSubPixelPrecisionBits = vk::SUBPIXEL_PRECISION_BITS;
 }
 
+void PhysicalDevice::getProperties(VkPhysicalDeviceMultiDrawPropertiesEXT *properties) const
+{
+	properties->maxMultiDrawCount = UINT32_MAX;
+}
+
 void PhysicalDevice::getProperties(VkPhysicalDeviceProvokingVertexPropertiesEXT *properties) const
 {
 	properties->provokingVertexModePerPipeline = VK_TRUE;

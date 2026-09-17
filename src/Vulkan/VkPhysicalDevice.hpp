@@ -93,6 +93,7 @@ public:
 	void getProperties(VkPhysicalDeviceExternalMemoryHostPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceDriverProperties *properties) const;
 	void getProperties(VkPhysicalDeviceLineRasterizationPropertiesEXT *properties) const;
+	void getProperties(VkPhysicalDeviceMultiDrawPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceProvokingVertexPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceFloatControlsProperties *) const;
 	void getProperties(VkPhysicalDeviceSamplerFilterMinmaxProperties *properties) const;

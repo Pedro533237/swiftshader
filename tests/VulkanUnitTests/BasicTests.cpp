@@ -142,6 +142,15 @@ TEST_F(BasicTest, Version)
 	driver.vkGetPhysicalDeviceProperties2(pPhysicalDevice, &physicalDeviceProperties2);
 	EXPECT_EQ(divisorProperties.maxVertexAttribDivisor, UINT32_MAX);
 
+	VkPhysicalDeviceMultiDrawPropertiesEXT multiDrawProperties = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_PROPERTIES_EXT,
+		nullptr,
+		0,
+	};
+	physicalDeviceProperties2.pNext = &multiDrawProperties;
+	driver.vkGetPhysicalDeviceProperties2(pPhysicalDevice, &physicalDeviceProperties2);
+	EXPECT_EQ(multiDrawProperties.maxMultiDrawCount, UINT32_MAX);
+
 	driver.vkDestroyInstance(instance, nullptr);
 }
 /*

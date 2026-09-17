@@ -3914,6 +3914,12 @@ VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceProperties2(VkPhysicalDevice physi
 				vk::Cast(physicalDevice)->getProperties(properties);
 			}
 			break;
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_PROPERTIES_EXT:
+			{
+				auto *properties = reinterpret_cast<VkPhysicalDeviceMultiDrawPropertiesEXT *>(extensionProperties);
+				vk::Cast(physicalDevice)->getProperties(properties);
+			}
+			break;
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_PROPERTIES_EXT:
 			{
 				auto *properties = reinterpret_cast<VkPhysicalDeviceProvokingVertexPropertiesEXT *>(extensionProperties);
