@@ -30,10 +30,14 @@
 
 namespace vk {
 
-Queue::Queue(Device *device, marl::Scheduler *scheduler)
+Queue::Queue(Device *device, marl::Scheduler *scheduler, VkDeviceQueueCreateFlags flags)
     : device(device)
 {
 	queueThread = std::thread(&Queue::taskLoop, this, scheduler);
+	if (((int)flags & VK_DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR) != 0)
+	{
+		internalMutex.reset(new marl::mutex);
+	}
 }
 
 Queue::~Queue()
@@ -258,6 +262,15 @@ void Queue::endDebugUtilsLabel()
 void Queue::insertDebugUtilsLabel(const VkDebugUtilsLabelEXT *pLabelInfo)
 {
 	// Optional single debug label
+}
+
+std::unique_lock<marl::mutex> Queue::getInternalLock()
+{
+	if (internalMutex)
+	{
+		return std::unique_lock<marl::mutex>(*internalMutex);
+	}
+	return std::unique_lock<marl::mutex>();
 }
 
 }  // namespace vk

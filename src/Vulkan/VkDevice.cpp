@@ -136,7 +136,7 @@ Device::Device(const VkDeviceCreateInfo *pCreateInfo, void *mem, PhysicalDevice 
 
 		for(uint32_t j = 0; j < queueCreateInfo.queueCount; j++, queueID++)
 		{
-			new(&queues[queueID]) Queue(this, scheduler.get());
+			new(&queues[queueID]) Queue(this, scheduler.get(), queueCreateInfo.flags);
 		}
 	}
 

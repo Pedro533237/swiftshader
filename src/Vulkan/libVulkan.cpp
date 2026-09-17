@@ -460,6 +460,7 @@ static const ExtensionProperties deviceExtensionProperties[] = {
 	{ { VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME, VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_SPEC_VERSION } },
 	{ { VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME, VK_KHR_PIPELINE_LIBRARY_SPEC_VERSION } },
 	{ { VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME, VK_KHR_UNIFIED_IMAGE_LAYOUTS_SPEC_VERSION } },
+	{ { VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME, VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_SPEC_VERSION } },
 #ifndef __ANDROID__
 	{ { VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME, VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_SPEC_VERSION } },
 	{ { VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME, VK_KHR_SWAPCHAIN_MAINTENANCE_1_SPEC_VERSION } },
@@ -1255,6 +1256,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, c
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_ROBUSTNESS_FEATURES_EXT:
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES:
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES:
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INTERNALLY_SYNCHRONIZED_QUEUES_FEATURES_KHR:
 			break;
 		default:
 			// "the [driver] must skip over, without processing (other than reading the sType and pNext members) any structures in the chain with sType values not defined by [supported extenions]"
@@ -1280,7 +1282,8 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, c
 	for(uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; i++)
 	{
 		const VkDeviceQueueCreateInfo &queueCreateInfo = pCreateInfo->pQueueCreateInfos[i];
-		if(queueCreateInfo.flags != 0)
+
+		if((queueCreateInfo.flags & ~VK_DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR) != 0)
 		{
 			UNSUPPORTED("pCreateInfo->pQueueCreateInfos[%d]->flags 0x%08X", i, queueCreateInfo.flags);
 		}
@@ -1400,6 +1403,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount
 	TRACE("(VkQueue queue = %p, uint32_t submitCount = %d, const VkSubmitInfo* pSubmits = %p, VkFence fence = %p)",
 	      queue, submitCount, pSubmits, static_cast<void *>(fence));
 
+	auto queueLock = vk::Cast(queue)->getInternalLock();
 	return vk::Cast(queue)->submit(submitCount, vk::SubmitInfo::Allocate(submitCount, pSubmits), vk::Cast(fence));
 }
 
@@ -1408,6 +1412,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit2(VkQueue queue, uint32_t submitCoun
 	TRACE("(VkQueue queue = %p, uint32_t submitCount = %d, const VkSubmitInfo2* pSubmits = %p, VkFence fence = %p)",
 	      queue, submitCount, pSubmits, static_cast<void *>(fence));
 
+	auto queueLock = vk::Cast(queue)->getInternalLock();
 	return vk::Cast(queue)->submit(submitCount, vk::SubmitInfo::Allocate(submitCount, pSubmits), vk::Cast(fence));
 }
 
@@ -1415,6 +1420,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkQueueWaitIdle(VkQueue queue)
 {
 	TRACE("(VkQueue queue = %p)", queue);
 
+	auto queueLock = vk::Cast(queue)->getInternalLock();
 	return vk::Cast(queue)->waitIdle();
 }
 
@@ -1691,6 +1697,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkQueueBindSparse(VkQueue queue, uint32_t bindInf
 {
 	TRACE("()");
 	UNSUPPORTED("vkQueueBindSparse");
+	auto queueLock = vk::Cast(queue)->getInternalLock();
 	return VK_SUCCESS;
 }
 
@@ -4269,7 +4276,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetDeviceQueue2(VkDevice device, const VkDeviceQueu
 		extInfo = extInfo->pNext;
 	}
 
-	if(pQueueInfo->flags != 0)
+	if((pQueueInfo->flags & VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT) != 0)
 	{
 		// The only flag that can be set here is VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT
 		// According to the Vulkan 1.2.132 spec, 4.3.1. Queue Family Properties:
@@ -4543,6 +4550,7 @@ VKAPI_ATTR void VKAPI_CALL vkQueueBeginDebugUtilsLabelEXT(VkQueue queue, const V
 	TRACE("(VkQueue queue = %p, const VkDebugUtilsLabelEXT* pLabelInfo = %p)",
 	      queue, pLabelInfo);
 
+	auto queueLock = vk::Cast(queue)->getInternalLock();
 	vk::Cast(queue)->beginDebugUtilsLabel(pLabelInfo);
 }
 
@@ -4550,6 +4558,7 @@ VKAPI_ATTR void VKAPI_CALL vkQueueEndDebugUtilsLabelEXT(VkQueue queue)
 {
 	TRACE("(VkQueue queue = %p)", queue);
 
+	auto queueLock = vk::Cast(queue)->getInternalLock();
 	vk::Cast(queue)->endDebugUtilsLabel();
 }
 
@@ -4558,6 +4567,7 @@ VKAPI_ATTR void VKAPI_CALL vkQueueInsertDebugUtilsLabelEXT(VkQueue queue, const 
 	TRACE("(VkQueue queue = %p, const VkDebugUtilsLabelEXT* pLabelInfo = %p)",
 	      queue, pLabelInfo);
 
+	auto queueLock = vk::Cast(queue)->getInternalLock();
 	vk::Cast(queue)->insertDebugUtilsLabel(pLabelInfo);
 }
 
@@ -4977,6 +4987,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkQueuePresentKHR(VkQueue queue, const VkPresentI
 	TRACE("(VkQueue queue = %p, const VkPresentInfoKHR* pPresentInfo = %p)",
 	      queue, pPresentInfo);
 
+	auto queueLock = vk::Cast(queue)->getInternalLock();
 	return vk::Cast(queue)->present(pPresentInfo);
 }
 

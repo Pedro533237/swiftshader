@@ -23,11 +23,18 @@
 #include "SIMD.hpp"
 #include "x86.hpp"
 
+#include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ManagedStatic.h"
+
+#if LLVM_VERSION_MAJOR >= 10 && LLVM_VERSION_MAJOR < 9999
+#define GET_INTRINSIC_DECLARATION llvm::Intrinsic::getDeclaration
+#else
+#define GET_INTRINSIC_DECLARATION llvm::Intrinsic::getOrInsertDeclaration
+#endif
 
 #include <fstream>
 #include <iostream>
@@ -83,6 +90,15 @@ auto getNumElements(llvm::FixedVectorType *vec)
 #endif
 }
 
+llvm::PointerType *getPointerTo(llvm::Type *type, unsigned int addressSpace = 0)
+{
+#if LLVM_VERSION_MAJOR > 23
+	return llvm::PointerType::get(type->getContext(), addressSpace);
+#else
+	return type->getPointerTo(addressSpace);
+#endif
+}
+
 llvm::Value *lowerPAVG(llvm::Value *x, llvm::Value *y)
 {
 	llvm::VectorType *ty = llvm::cast<llvm::VectorType>(x->getType());
@@ -120,7 +136,7 @@ llvm::Value *lowerPCMP(llvm::ICmpInst::Predicate pred, llvm::Value *x,
 
 [[maybe_unused]] llvm::Value *lowerRound(llvm::Value *x)
 {
-	llvm::Function *nearbyint = llvm::Intrinsic::getDeclaration(
+	llvm::Function *nearbyint = GET_INTRINSIC_DECLARATION(
 	    jit->module.get(), llvm::Intrinsic::nearbyint, { x->getType() });
 	return jit->builder->CreateCall(nearbyint, { x });
 }
@@ -132,21 +148,21 @@ llvm::Value *lowerPCMP(llvm::ICmpInst::Predicate pred, llvm::Value *x,
 
 [[maybe_unused]] llvm::Value *lowerFloor(llvm::Value *x)
 {
-	llvm::Function *floor = llvm::Intrinsic::getDeclaration(
+	llvm::Function *floor = GET_INTRINSIC_DECLARATION(
 	    jit->module.get(), llvm::Intrinsic::floor, { x->getType() });
 	return jit->builder->CreateCall(floor, { x });
 }
 
 [[maybe_unused]] llvm::Value *lowerTrunc(llvm::Value *x)
 {
-	llvm::Function *trunc = llvm::Intrinsic::getDeclaration(
+	llvm::Function *trunc = GET_INTRINSIC_DECLARATION(
 	    jit->module.get(), llvm::Intrinsic::trunc, { x->getType() });
 	return jit->builder->CreateCall(trunc, { x });
 }
 
 [[maybe_unused]] llvm::Value *lowerSQRT(llvm::Value *x)
 {
-	llvm::Function *sqrt = llvm::Intrinsic::getDeclaration(
+	llvm::Function *sqrt = GET_INTRINSIC_DECLARATION(
 	    jit->module.get(), llvm::Intrinsic::sqrt, { x->getType() });
 	return jit->builder->CreateCall(sqrt, { x });
 }
@@ -626,9 +642,9 @@ Value *Nucleus::allocateStackVariable(Type *type, int arraySize)
 
 	if(getPragmaState(InitializeLocalVariables))
 	{
-		llvm::Type *i8PtrTy = llvm::Type::getInt8Ty(*jit->context)->getPointerTo();
+		llvm::Type *i8PtrTy = getPointerTo(llvm::Type::getInt8Ty(*jit->context));
 		llvm::Type *i32Ty = llvm::Type::getInt32Ty(*jit->context);
-		llvm::Function *memset = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::memset, { i8PtrTy, i32Ty });
+		llvm::Function *memset = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::memset, { i8PtrTy, i32Ty });
 
 		jit->builder->CreateCall(memset, { jit->builder->CreatePointerCast(declaration, i8PtrTy),
 		                                   V(Nucleus::createConstantByte((unsigned char)0)),
@@ -905,7 +921,7 @@ Value *Nucleus::createLoad(Value *ptr, Type *type, bool isVolatile, unsigned int
 				// Load as an integer and bitcast. See b/136037244.
 				auto size = jit->module->getDataLayout().getTypeStoreSize(elTy);
 				auto elAsIntTy = llvm::IntegerType::get(*jit->context, size * 8);
-				auto ptrCast = jit->builder->CreatePointerCast(V(ptr), elAsIntTy->getPointerTo());
+				auto ptrCast = jit->builder->CreatePointerCast(V(ptr), getPointerTo(elAsIntTy));
 				auto load = jit->builder->CreateAlignedLoad(elAsIntTy, ptrCast, llvm::MaybeAlign(alignment), isVolatile);
 				load->setAtomic(atomicOrdering(atomic, memoryOrder));
 				auto loadCast = jit->builder->CreateBitCast(load, elTy);
@@ -918,7 +934,7 @@ Value *Nucleus::createLoad(Value *ptr, Type *type, bool isVolatile, unsigned int
 				auto sizetTy = llvm::IntegerType::get(*jit->context, sizeof(size_t) * 8);
 				auto intTy = llvm::IntegerType::get(*jit->context, sizeof(int) * 8);
 				auto i8Ty = llvm::Type::getInt8Ty(*jit->context);
-				auto i8PtrTy = i8Ty->getPointerTo();
+				auto i8PtrTy = getPointerTo(i8Ty);
 				auto voidTy = llvm::Type::getVoidTy(*jit->context);
 				auto funcTy = llvm::FunctionType::get(voidTy, { sizetTy, i8PtrTy, i8PtrTy, intTy }, false);
 				auto func = jit->module->getOrInsertFunction("__atomic_load", funcTy);
@@ -975,7 +991,7 @@ Value *Nucleus::createStore(Value *value, Value *ptr, Type *type, bool isVolatil
 				// void __msan_unpoison(const volatile void *a, size_t size)
 				auto voidTy = llvm::Type::getVoidTy(*jit->context);
 				auto i8Ty = llvm::Type::getInt8Ty(*jit->context);
-				auto voidPtrTy = i8Ty->getPointerTo();
+				auto voidPtrTy = getPointerTo(i8Ty);
 				auto sizetTy = llvm::IntegerType::get(*jit->context, sizeof(size_t) * 8);
 				auto funcTy = llvm::FunctionType::get(voidTy, { voidPtrTy, sizetTy }, false);
 				auto func = jit->module->getOrInsertFunction("__msan_unpoison", funcTy);
@@ -1004,7 +1020,7 @@ Value *Nucleus::createStore(Value *value, Value *ptr, Type *type, bool isVolatil
 				auto size = jit->module->getDataLayout().getTypeStoreSize(elTy);
 				auto elAsIntTy = llvm::IntegerType::get(*jit->context, size * 8);
 				auto valCast = jit->builder->CreateBitCast(V(value), elAsIntTy);
-				auto ptrCast = jit->builder->CreatePointerCast(V(ptr), elAsIntTy->getPointerTo());
+				auto ptrCast = jit->builder->CreatePointerCast(V(ptr), getPointerTo(elAsIntTy));
 				auto store = jit->builder->CreateAlignedStore(valCast, ptrCast, llvm::MaybeAlign(alignment), isVolatile);
 				store->setAtomic(atomicOrdering(atomic, memoryOrder));
 			}
@@ -1015,7 +1031,7 @@ Value *Nucleus::createStore(Value *value, Value *ptr, Type *type, bool isVolatil
 				auto sizetTy = llvm::IntegerType::get(*jit->context, sizeof(size_t) * 8);
 				auto intTy = llvm::IntegerType::get(*jit->context, sizeof(int) * 8);
 				auto i8Ty = llvm::Type::getInt8Ty(*jit->context);
-				auto i8PtrTy = i8Ty->getPointerTo();
+				auto i8PtrTy = getPointerTo(i8Ty);
 				auto voidTy = llvm::Type::getVoidTy(*jit->context);
 				auto funcTy = llvm::FunctionType::get(voidTy, { sizetTy, i8PtrTy, i8PtrTy, intTy }, false);
 				auto func = jit->module->getOrInsertFunction("__atomic_store", funcTy);
@@ -1049,11 +1065,11 @@ Value *Nucleus::createMaskedLoad(Value *ptr, Type *elTy, Value *mask, unsigned i
 	auto i1Ty = llvm::Type::getInt1Ty(*jit->context);
 	auto i32Ty = llvm::Type::getInt32Ty(*jit->context);
 	auto elVecTy = llvm::VectorType::get(T(elTy), numEls, false);
-	auto elVecPtrTy = elVecTy->getPointerTo();
+	auto elVecPtrTy = getPointerTo(elVecTy);
 	auto i8Mask = jit->builder->CreateIntCast(V(mask), llvm::VectorType::get(i1Ty, numEls, false), false);  // vec<int, int, ...> -> vec<bool, bool, ...>
 	auto passthrough = zeroMaskedLanes ? llvm::Constant::getNullValue(elVecTy) : llvm::UndefValue::get(elVecTy);
 	auto align = llvm::ConstantInt::get(i32Ty, alignment);
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::masked_load, { elVecTy, elVecPtrTy });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::masked_load, { elVecTy, elVecPtrTy });
 	return V(jit->builder->CreateCall(func, { V(ptr), align, i8Mask, passthrough }));
 }
 
@@ -1069,10 +1085,10 @@ void Nucleus::createMaskedStore(Value *ptr, Value *val, Value *mask, unsigned in
 	auto i1Ty = llvm::Type::getInt1Ty(*jit->context);
 	auto i32Ty = llvm::Type::getInt32Ty(*jit->context);
 	auto elVecTy = V(val)->getType();
-	auto elVecPtrTy = elVecTy->getPointerTo();
+	auto elVecPtrTy = getPointerTo(elVecTy);
 	auto i1Mask = jit->builder->CreateIntCast(V(mask), llvm::VectorType::get(i1Ty, numEls, false), false);  // vec<int, int, ...> -> vec<bool, bool, ...>
 	auto align = llvm::ConstantInt::get(i32Ty, alignment);
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::masked_store, { elVecTy, elVecPtrTy });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::masked_store, { elVecTy, elVecPtrTy });
 	jit->builder->CreateCall(func, { V(val), V(ptr), align, i1Mask });
 
 	if(__has_feature(memory_sanitizer) && !jit->msanInstrumentation)
@@ -1080,7 +1096,7 @@ void Nucleus::createMaskedStore(Value *ptr, Value *val, Value *mask, unsigned in
 		// Mark memory writes as initialized by calling __msan_unpoison
 		// void __msan_unpoison(const volatile void *a, size_t size)
 		auto voidTy = llvm::Type::getVoidTy(*jit->context);
-		auto voidPtrTy = voidTy->getPointerTo();
+		auto voidPtrTy = getPointerTo(voidTy);
 		auto sizetTy = llvm::IntegerType::get(*jit->context, sizeof(size_t) * 8);
 		auto funcTy = llvm::FunctionType::get(voidTy, { voidPtrTy, sizetTy }, false);
 		auto func = jit->module->getOrInsertFunction("__msan_unpoison", funcTy);
@@ -1116,8 +1132,8 @@ static llvm::Value *createGather(llvm::Value *base, llvm::Type *elTy, llvm::Valu
 	auto i1Ty = llvm::Type::getInt1Ty(*jit->context);
 	auto i32Ty = llvm::Type::getInt32Ty(*jit->context);
 	auto i8Ty = llvm::Type::getInt8Ty(*jit->context);
-	auto i8PtrTy = i8Ty->getPointerTo();
-	auto elPtrTy = elTy->getPointerTo();
+	auto i8PtrTy = getPointerTo(i8Ty);
+	auto elPtrTy = getPointerTo(elTy);
 	auto elVecTy = llvm::VectorType::get(elTy, numEls, false);
 	auto elPtrVecTy = llvm::VectorType::get(elPtrTy, numEls, false);
 	auto i8Base = jit->builder->CreatePointerCast(base, i8PtrTy);
@@ -1129,7 +1145,7 @@ static llvm::Value *createGather(llvm::Value *base, llvm::Type *elTy, llvm::Valu
 	if(!__has_feature(memory_sanitizer))
 	{
 		auto align = llvm::ConstantInt::get(i32Ty, alignment);
-		auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::masked_gather, { elVecTy, elPtrVecTy });
+		auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::masked_gather, { elVecTy, elPtrVecTy });
 		return jit->builder->CreateCall(func, { elPtrs, align, i1Mask, passthrough });
 	}
 	else  // __has_feature(memory_sanitizer)
@@ -1182,10 +1198,10 @@ static void createScatter(llvm::Value *base, llvm::Value *val, llvm::Value *offs
 	auto i1Ty = llvm::Type::getInt1Ty(*jit->context);
 	auto i32Ty = llvm::Type::getInt32Ty(*jit->context);
 	auto i8Ty = llvm::Type::getInt8Ty(*jit->context);
-	auto i8PtrTy = i8Ty->getPointerTo();
+	auto i8PtrTy = getPointerTo(i8Ty);
 	auto elVecTy = val->getType();
 	auto elTy = llvm::cast<llvm::VectorType>(elVecTy)->getElementType();
-	auto elPtrTy = elTy->getPointerTo();
+	auto elPtrTy = getPointerTo(elTy);
 	auto elPtrVecTy = llvm::VectorType::get(elPtrTy, numEls, false);
 
 	auto i8Base = jit->builder->CreatePointerCast(base, i8PtrTy);
@@ -1196,7 +1212,7 @@ static void createScatter(llvm::Value *base, llvm::Value *val, llvm::Value *offs
 	if(!__has_feature(memory_sanitizer))
 	{
 		auto align = llvm::ConstantInt::get(i32Ty, alignment);
-		auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::masked_scatter, { elVecTy, elPtrVecTy });
+		auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::masked_scatter, { elVecTy, elPtrVecTy });
 		jit->builder->CreateCall(func, { val, elPtrs, align, i1Mask });
 	}
 	else  // __has_feature(memory_sanitizer)
@@ -1276,8 +1292,8 @@ Value *Nucleus::createGEP(Value *ptr, Type *type, Value *index, bool unsignedInd
 	// Cast to a byte pointer, apply the byte offset, and cast back to the
 	// original pointer type.
 	return createBitCast(
-	    V(jit->builder->CreateGEP(T(Byte::type()), V(createBitCast(ptr, T(llvm::PointerType::get(T(Byte::type()), 0)))), V(index))),
-	    T(llvm::PointerType::get(T(type), 0)));
+	    V(jit->builder->CreateGEP(T(Byte::type()), V(createBitCast(ptr, T(getPointerTo(T(Byte::type()), 0)))), V(index))),
+	    T(getPointerTo(T(type), 0)));
 }
 
 Value *Nucleus::createAtomicAdd(Value *ptr, Value *value, std::memory_order memoryOrder)
@@ -1451,7 +1467,7 @@ Value *Nucleus::createBitCast(Value *v, Type *destType)
 	if(!V(v)->getType()->isVectorTy() && T(destType)->isVectorTy())
 	{
 		Value *readAddress = allocateStackVariable(destType);
-		Value *writeAddress = createBitCast(readAddress, T(llvm::PointerType::get(V(v)->getType(), 0)));
+		Value *writeAddress = createBitCast(readAddress, T(getPointerTo(V(v)->getType(), 0)));
 		createStore(v, writeAddress, T(V(v)->getType()));
 		return createLoad(readAddress, destType);
 	}
@@ -1459,7 +1475,7 @@ Value *Nucleus::createBitCast(Value *v, Type *destType)
 	{
 		Value *writeAddress = allocateStackVariable(T(V(v)->getType()));
 		createStore(v, writeAddress, T(V(v)->getType()));
-		Value *readAddress = createBitCast(writeAddress, T(llvm::PointerType::get(T(destType), 0)));
+		Value *readAddress = createBitCast(writeAddress, T(getPointerTo(T(destType), 0)));
 		return createLoad(readAddress, destType);
 	}
 
@@ -1677,7 +1693,7 @@ Type *Nucleus::getContainedType(Type *vectorType)
 
 Type *Nucleus::getPointerType(Type *ElementType)
 {
-	return T(llvm::PointerType::get(T(ElementType), 0));
+	return T(getPointerTo(T(ElementType), 0));
 }
 
 static llvm::Type *getNaturalIntType()
@@ -1764,7 +1780,7 @@ Value *Nucleus::createConstantFloat(float x)
 Value *Nucleus::createNullPointer(Type *Ty)
 {
 	RR_DEBUG_INFO_UPDATE_LOC();
-	return V(llvm::ConstantPointerNull::get(llvm::PointerType::get(T(Ty), 0)));
+	return V(llvm::ConstantPointerNull::get(getPointerTo(T(Ty), 0)));
 }
 
 Value *Nucleus::createConstantVector(std::vector<int64_t> constants, Type *type)
@@ -2634,7 +2650,7 @@ RValue<Int4> CmpNLE(RValue<Int4> x, RValue<Int4> y)
 RValue<Int4> Abs(RValue<Int4> x)
 {
 #if LLVM_VERSION_MAJOR >= 12
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::abs, { V(x.value())->getType() });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::abs, { V(x.value())->getType() });
 	return RValue<Int4>(V(jit->builder->CreateCall(func, { V(x.value()), llvm::ConstantInt::getFalse(*jit->context) })));
 #else
 	auto negative = x >> 31;
@@ -2697,10 +2713,17 @@ RValue<Int4> RoundIntClamped(RValue<Float4> cast)
 #elif defined(__arm__) || defined(__aarch64__)
 	// ARM saturates to the largest positive or negative integer. Unit tests
 	// verify that lowerRoundInt() behaves as desired.
+#if LLVM_VERSION_MAJOR >= 14
+	llvm::Value *rounded = lowerRound(V(cast.value()));
+	llvm::Function *fptosi_sat = GET_INTRINSIC_DECLARATION(
+	    jit->module.get(), llvm::Intrinsic::fptosi_sat, { T(Int4::type()), T(Float4::type()) });
+	return RValue<Int4>(V(jit->builder->CreateCall(fptosi_sat, { rounded })));
+#else
 	return As<Int4>(V(lowerRoundInt(V(cast.value()), T(Int4::type()))));
+#endif
 #elif LLVM_VERSION_MAJOR >= 14
 	llvm::Value *rounded = lowerRound(V(cast.value()));
-	llvm::Function *fptosi_sat = llvm::Intrinsic::getDeclaration(
+	llvm::Function *fptosi_sat = GET_INTRINSIC_DECLARATION(
 	    jit->module.get(), llvm::Intrinsic::fptosi_sat, { T(Int4::type()), T(Float4::type()) });
 	return RValue<Int4>(V(jit->builder->CreateCall(fptosi_sat, { rounded })));
 #else
@@ -3067,19 +3090,19 @@ Float4::Float4(RValue<Float> rhs)
 
 RValue<Float4> MulAdd(RValue<Float4> x, RValue<Float4> y, RValue<Float4> z)
 {
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::fmuladd, { T(Float4::type()) });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::fmuladd, { T(Float4::type()) });
 	return RValue<Float4>(V(jit->builder->CreateCall(func, { V(x.value()), V(y.value()), V(z.value()) })));
 }
 
 RValue<Float4> FMA(RValue<Float4> x, RValue<Float4> y, RValue<Float4> z)
 {
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::fma, { T(Float4::type()) });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::fma, { T(Float4::type()) });
 	return RValue<Float4>(V(jit->builder->CreateCall(func, { V(x.value()), V(y.value()), V(z.value()) })));
 }
 
 RValue<Float4> Abs(RValue<Float4> x)
 {
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::fabs, { V(x.value())->getType() });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::fabs, { V(x.value())->getType() });
 	return RValue<Float4>(V(jit->builder->CreateCall(func, V(x.value()))));
 }
 
@@ -3295,7 +3318,7 @@ RValue<Float4> Ceil(RValue<Float4> x)
 RValue<UInt> Ctlz(RValue<UInt> v, bool isZeroUndef)
 {
 	RR_DEBUG_INFO_UPDATE_LOC();
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::ctlz, { T(UInt::type()) });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::ctlz, { T(UInt::type()) });
 	return RValue<UInt>(V(jit->builder->CreateCall(func, { V(v.value()),
 	                                                       isZeroUndef ? llvm::ConstantInt::getTrue(*jit->context) : llvm::ConstantInt::getFalse(*jit->context) })));
 }
@@ -3303,7 +3326,7 @@ RValue<UInt> Ctlz(RValue<UInt> v, bool isZeroUndef)
 RValue<UInt4> Ctlz(RValue<UInt4> v, bool isZeroUndef)
 {
 	RR_DEBUG_INFO_UPDATE_LOC();
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::ctlz, { T(UInt4::type()) });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::ctlz, { T(UInt4::type()) });
 	return RValue<UInt4>(V(jit->builder->CreateCall(func, { V(v.value()),
 	                                                        isZeroUndef ? llvm::ConstantInt::getTrue(*jit->context) : llvm::ConstantInt::getFalse(*jit->context) })));
 }
@@ -3311,7 +3334,7 @@ RValue<UInt4> Ctlz(RValue<UInt4> v, bool isZeroUndef)
 RValue<UInt> Cttz(RValue<UInt> v, bool isZeroUndef)
 {
 	RR_DEBUG_INFO_UPDATE_LOC();
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::cttz, { T(UInt::type()) });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::cttz, { T(UInt::type()) });
 	return RValue<UInt>(V(jit->builder->CreateCall(func, { V(v.value()),
 	                                                       isZeroUndef ? llvm::ConstantInt::getTrue(*jit->context) : llvm::ConstantInt::getFalse(*jit->context) })));
 }
@@ -3319,7 +3342,7 @@ RValue<UInt> Cttz(RValue<UInt> v, bool isZeroUndef)
 RValue<UInt4> Cttz(RValue<UInt4> v, bool isZeroUndef)
 {
 	RR_DEBUG_INFO_UPDATE_LOC();
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::cttz, { T(UInt4::type()) });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::cttz, { T(UInt4::type()) });
 	return RValue<UInt4>(V(jit->builder->CreateCall(func, { V(v.value()),
 	                                                        isZeroUndef ? llvm::ConstantInt::getTrue(*jit->context) : llvm::ConstantInt::getFalse(*jit->context) })));
 }
@@ -3352,7 +3375,7 @@ Type *Float4::type()
 RValue<Long> Ticks()
 {
 	RR_DEBUG_INFO_UPDATE_LOC();
-	llvm::Function *rdtsc = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::readcyclecounter);
+	llvm::Function *rdtsc = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::readcyclecounter);
 
 	return RValue<Long>(V(jit->builder->CreateCall(rdtsc)));
 }
@@ -3394,7 +3417,7 @@ Value *Call(RValue<Pointer<Byte>> fptr, Type *retTy, std::initializer_list<Value
 	for(auto ty : argTys) { paramTys.push_back(T(ty)); }
 	auto funcTy = llvm::FunctionType::get(T(retTy), paramTys, false);
 
-	auto funcPtrTy = funcTy->getPointerTo();
+	auto funcPtrTy = getPointerTo(funcTy);
 	auto funcPtr = jit->builder->CreatePointerCast(V(fptr.value()), funcPtrTy);
 
 	llvm::SmallVector<llvm::Value *, 8> arguments;
@@ -3405,7 +3428,7 @@ Value *Call(RValue<Pointer<Byte>> fptr, Type *retTy, std::initializer_list<Value
 void Breakpoint()
 {
 	RR_DEBUG_INFO_UPDATE_LOC();
-	llvm::Function *debugtrap = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::debugtrap);
+	llvm::Function *debugtrap = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::debugtrap);
 
 	jit->builder->CreateCall(debugtrap);
 }
@@ -3421,7 +3444,7 @@ namespace x86 {
 // implicit types, such as 'x86_sse_rcp_ps' operating on v4f32, while 'sqrt' requires explicitly specifying the operand type.
 static Value *createInstruction(llvm::Intrinsic::ID id, Value *x)
 {
-	llvm::Function *intrinsic = llvm::Intrinsic::getDeclaration(jit->module.get(), id);
+	llvm::Function *intrinsic = GET_INTRINSIC_DECLARATION(jit->module.get(), id);
 
 	return V(jit->builder->CreateCall(intrinsic, V(x)));
 }
@@ -3430,7 +3453,7 @@ static Value *createInstruction(llvm::Intrinsic::ID id, Value *x)
 // implicit types, such as 'x86_sse_max_ps' operating on v4f32, while 'sadd_sat' requires explicitly specifying the operand types.
 static Value *createInstruction(llvm::Intrinsic::ID id, Value *x, Value *y)
 {
-	llvm::Function *intrinsic = llvm::Intrinsic::getDeclaration(jit->module.get(), id);
+	llvm::Function *intrinsic = GET_INTRINSIC_DECLARATION(jit->module.get(), id);
 
 	return V(jit->builder->CreateCall(intrinsic, { V(x), V(y) }));
 }
@@ -3496,7 +3519,7 @@ RValue<Float4> minps(RValue<Float4> x, RValue<Float4> y)
 
 RValue<Float> roundss(RValue<Float> val, unsigned char imm)
 {
-	llvm::Function *roundss = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::x86_sse41_round_ss);
+	llvm::Function *roundss = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::x86_sse41_round_ss);
 
 	Value *undef = V(llvm::UndefValue::get(T(Float4::type())));
 	Value *vector = Nucleus::createInsertElement(undef, val.value(), 0);
@@ -3859,19 +3882,19 @@ void promoteFunctionToCoroutine()
 	auto i32Ty = llvm::Type::getInt32Ty(*jit->context);
 	auto i8PtrTy = our_getInt8PtrTy(*jit->context);
 	auto promiseTy = jit->coroutine.yieldType;
-	auto promisePtrTy = promiseTy->getPointerTo();
+	auto promisePtrTy = getPointerTo(promiseTy);
 
 	// LLVM intrinsics
-	auto coro_id = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_id);
-	auto coro_size = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_size, { i32Ty });
-	auto coro_begin = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_begin);
-	auto coro_resume = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_resume);
-	auto coro_end = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_end);
-	auto coro_free = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_free);
-	auto coro_destroy = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_destroy);
-	auto coro_promise = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_promise);
-	auto coro_done = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_done);
-	auto coro_suspend = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_suspend);
+	auto coro_id = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_id);
+	auto coro_size = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_size, { i32Ty });
+	auto coro_begin = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_begin);
+	auto coro_resume = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_resume);
+	auto coro_end = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_end);
+	auto coro_free = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_free);
+	auto coro_destroy = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_destroy);
+	auto coro_promise = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_promise);
+	auto coro_done = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_done);
+	auto coro_suspend = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_suspend);
 
 	auto allocFrameTy = llvm::FunctionType::get(i8PtrTy, { i32Ty }, false);
 	auto allocFrame = jit->module->getOrInsertFunction("coroutine_alloc_frame", allocFrameTy);
@@ -4026,7 +4049,7 @@ void Nucleus::createCoroutine(Type *YieldType, const std::vector<Type *> &Params
 	auto handleTy = i8PtrTy;
 	auto boolTy = i1Ty;
 	auto promiseTy = T(YieldType);
-	auto promisePtrTy = promiseTy->getPointerTo();
+	auto promisePtrTy = getPointerTo(promiseTy);
 
 	jit->function = rr::createFunction("coroutine_begin", handleTy, T(Params));
 #if LLVM_VERSION_MAJOR >= 16
@@ -4075,7 +4098,7 @@ void Nucleus::yield(Value *val)
 	auto i8Ty = llvm::Type::getInt8Ty(*jit->context);
 
 	// Intrinsics
-	auto coro_suspend = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::coro_suspend);
+	auto coro_suspend = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::coro_suspend);
 
 	// Create a block to resume execution.
 	auto resumeBlock = llvm::BasicBlock::Create(*jit->context, "resume", jit->function);
@@ -4219,7 +4242,7 @@ RValue<SIMD::Int> CmpNLE(RValue<SIMD::Int> x, RValue<SIMD::Int> y)
 RValue<SIMD::Int> Abs(RValue<SIMD::Int> x)
 {
 #if LLVM_VERSION_MAJOR >= 12
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::abs, { V(x.value())->getType() });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::abs, { V(x.value())->getType() });
 	return RValue<SIMD::Int>(V(jit->builder->CreateCall(func, { V(x.value()), llvm::ConstantInt::getFalse(*jit->context) })));
 #else
 	auto negative = x >> 31;
@@ -4258,7 +4281,7 @@ RValue<SIMD::Int> RoundIntClamped(RValue<SIMD::Float> cast)
 	return As<SIMD::Int>(V(lowerRoundInt(V(cast.value()), T(SIMD::Int::type()))));
 #elif LLVM_VERSION_MAJOR >= 14
 	llvm::Value *rounded = lowerRound(V(cast.value()));
-	llvm::Function *fptosi_sat = llvm::Intrinsic::getDeclaration(
+	llvm::Function *fptosi_sat = GET_INTRINSIC_DECLARATION(
 	    jit->module.get(), llvm::Intrinsic::fptosi_sat, { T(SIMD::Int::type()), T(SIMD::Float::type()) });
 	return RValue<SIMD::Int>(V(jit->builder->CreateCall(fptosi_sat, { rounded })));
 #else
@@ -4410,19 +4433,19 @@ RValue<SIMD::Float> operator%(RValue<SIMD::Float> lhs, RValue<SIMD::Float> rhs)
 
 RValue<SIMD::Float> MulAdd(RValue<SIMD::Float> x, RValue<SIMD::Float> y, RValue<SIMD::Float> z)
 {
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::fmuladd, { T(SIMD::Float::type()) });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::fmuladd, { T(SIMD::Float::type()) });
 	return RValue<SIMD::Float>(V(jit->builder->CreateCall(func, { V(x.value()), V(y.value()), V(z.value()) })));
 }
 
 RValue<SIMD::Float> FMA(RValue<SIMD::Float> x, RValue<SIMD::Float> y, RValue<SIMD::Float> z)
 {
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::fma, { T(SIMD::Float::type()) });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::fma, { T(SIMD::Float::type()) });
 	return RValue<SIMD::Float>(V(jit->builder->CreateCall(func, { V(x.value()), V(y.value()), V(z.value()) })));
 }
 
 RValue<SIMD::Float> Abs(RValue<SIMD::Float> x)
 {
-	auto func = llvm::Intrinsic::getDeclaration(jit->module.get(), llvm::Intrinsic::fabs, { V(x.value())->getType() });
+	auto func = GET_INTRINSIC_DECLARATION(jit->module.get(), llvm::Intrinsic::fabs, { V(x.value())->getType() });
 	return RValue<SIMD::Float>(V(jit->builder->CreateCall(func, V(x.value()))));
 }
 

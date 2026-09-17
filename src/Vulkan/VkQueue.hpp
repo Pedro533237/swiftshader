@@ -44,7 +44,7 @@ class Queue
 	VK_LOADER_DATA loaderData = { ICD_LOADER_MAGIC };
 
 public:
-	Queue(Device *device, marl::Scheduler *scheduler);
+	Queue(Device *device, marl::Scheduler *scheduler, VkDeviceQueueCreateFlags flags);
 	~Queue();
 
 	operator VkQueue()
@@ -61,6 +61,8 @@ public:
 	void beginDebugUtilsLabel(const VkDebugUtilsLabelEXT *pLabelInfo);
 	void endDebugUtilsLabel();
 	void insertDebugUtilsLabel(const VkDebugUtilsLabelEXT *pLabelInfo);
+
+	std::unique_lock<marl::mutex> getInternalLock();
 
 private:
 	struct Task
@@ -87,6 +89,8 @@ private:
 	sw::Chan<Task> pending;
 	sw::Chan<SubmitInfo *> toDelete;
 	std::thread queueThread;
+	// For VK_KHR_internally_synchronized_queues
+	std::unique_ptr<marl::mutex> internalMutex;
 };
 
 static inline Queue *Cast(VkQueue object)
