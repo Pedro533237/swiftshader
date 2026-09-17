@@ -23,7 +23,7 @@ jobs:
       - name: Setup MSVC Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
 
-      # Instala o ccache no ambiente do Windows
+      # Instala o ccache no ambiente do Windows via Chocolatey
       - name: Install ccache
         run: choco install ccache -y
 
