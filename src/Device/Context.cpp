@@ -386,6 +386,7 @@ void Inputs::initialize(const VkPipelineVertexInputStateCreateInfo *vertexInputS
 		input.offset = desc.offset;
 		input.binding = desc.binding;
 		input.inputRate = inputRates[desc.binding];
+		input.instanceDivisor = instanceDivisors[desc.binding];
 		if(!dynamicStateFlags.dynamicVertexInputBindingStride)
 		{
 			// The following gets overriden with dynamic state anyway and setting it is
@@ -393,7 +394,6 @@ void Inputs::initialize(const VkPipelineVertexInputStateCreateInfo *vertexInputS
 			// state easier.
 			input.vertexStride = vertexStrides[desc.binding];
 			input.instanceStride = instanceStrides[desc.binding];
-			input.instanceDivisor = instanceDivisors[desc.binding];
 		}
 	}
 }
@@ -460,7 +460,6 @@ void Inputs::setVertexInputBinding(const VertexInputBinding bindings[], const Dy
 
 			input.vertexStride = input.inputRate == VK_VERTEX_INPUT_RATE_VERTEX ? stride : 0;
 			input.instanceStride = input.inputRate == VK_VERTEX_INPUT_RATE_INSTANCE ? stride : 0;
-			input.instanceDivisor = dynamicState.vertexInputBindings[input.binding].divisor;
 		}
 	}
 }
