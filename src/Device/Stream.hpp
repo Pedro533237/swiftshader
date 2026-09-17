@@ -26,6 +26,7 @@ struct Stream
 	VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	unsigned int vertexStride = 0;
 	unsigned int instanceStride = 0;
+	unsigned int instanceDivisor = 1;
 	VkFormat format = VK_FORMAT_UNDEFINED;
 	unsigned int offset = 0;
 	unsigned int binding = 0;

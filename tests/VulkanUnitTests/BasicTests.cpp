@@ -21,6 +21,10 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include <algorithm>
+#include <cstring>
+#include <vector>
+
 class BasicTest : public testing::Test
 {
 protected:
@@ -109,6 +113,34 @@ TEST_F(BasicTest, Version)
 	physicalDeviceDriverProperties.driverID = (VkDriverIdKHR)0;
 	driver.vkGetPhysicalDeviceProperties2(pPhysicalDevice, &physicalDeviceProperties2);
 	EXPECT_EQ(physicalDeviceDriverProperties.driverID, VK_DRIVER_ID_GOOGLE_SWIFTSHADER_KHR);
+
+	uint32_t extensionCount = 0;
+	EXPECT_EQ(driver.vkEnumerateDeviceExtensionProperties(pPhysicalDevice, nullptr, &extensionCount, nullptr), VK_SUCCESS);
+	std::vector<VkExtensionProperties> extensions(extensionCount);
+	EXPECT_EQ(driver.vkEnumerateDeviceExtensionProperties(pPhysicalDevice, nullptr, &extensionCount, extensions.data()), VK_SUCCESS);
+	EXPECT_TRUE(std::any_of(extensions.begin(), extensions.end(), [](const VkExtensionProperties &extension) {
+		return strcmp(extension.extensionName, VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME) == 0;
+	}));
+
+	VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT divisorFeatures = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT,
+		nullptr,
+		VK_FALSE,
+		VK_FALSE,
+	};
+	VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, &divisorFeatures, {} };
+	driver.vkGetPhysicalDeviceFeatures2(pPhysicalDevice, &features);
+	EXPECT_EQ(divisorFeatures.vertexAttributeInstanceRateDivisor, VK_TRUE);
+	EXPECT_EQ(divisorFeatures.vertexAttributeInstanceRateZeroDivisor, VK_TRUE);
+
+	VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT divisorProperties = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT,
+		nullptr,
+		0,
+	};
+	physicalDeviceProperties2.pNext = &divisorProperties;
+	driver.vkGetPhysicalDeviceProperties2(pPhysicalDevice, &physicalDeviceProperties2);
+	EXPECT_EQ(divisorProperties.maxVertexAttribDivisor, UINT32_MAX);
 
 	driver.vkDestroyInstance(instance, nullptr);
 }

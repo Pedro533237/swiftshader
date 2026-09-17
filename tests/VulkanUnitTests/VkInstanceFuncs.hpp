@@ -53,12 +53,14 @@ VK_INSTANCE(vkDestroyPipelineLayout, void, VkDevice, VkPipelineLayout, const VkA
 VK_INSTANCE(vkDestroyShaderModule, void, VkDevice, VkShaderModule, const VkAllocationCallbacks *);
 VK_INSTANCE(vkEndCommandBuffer, VkResult, VkCommandBuffer);
 VK_INSTANCE(vkEnumeratePhysicalDevices, VkResult, VkInstance, uint32_t *, VkPhysicalDevice *);
+VK_INSTANCE(vkEnumerateDeviceExtensionProperties, VkResult, VkPhysicalDevice, const char *, uint32_t *, VkExtensionProperties *);
 VK_INSTANCE(vkFreeCommandBuffers, void, VkDevice, VkCommandPool, uint32_t, const VkCommandBuffer *);
 VK_INSTANCE(vkFreeMemory, void, VkDevice, VkDeviceMemory, const VkAllocationCallbacks *);
 VK_INSTANCE(vkGetDeviceQueue, void, VkDevice, uint32_t, uint32_t, VkQueue *);
 VK_INSTANCE(vkGetPhysicalDeviceMemoryProperties, void, VkPhysicalDevice, VkPhysicalDeviceMemoryProperties *);
 VK_INSTANCE(vkGetPhysicalDeviceProperties, void, VkPhysicalDevice, VkPhysicalDeviceProperties *);
 VK_INSTANCE(vkGetPhysicalDeviceProperties2, void, VkPhysicalDevice, VkPhysicalDeviceProperties2 *);
+VK_INSTANCE(vkGetPhysicalDeviceFeatures2, void, VkPhysicalDevice, VkPhysicalDeviceFeatures2 *);
 VK_INSTANCE(vkGetPhysicalDeviceQueueFamilyProperties, void, VkPhysicalDevice, uint32_t *, VkQueueFamilyProperties *);
 VK_INSTANCE(vkMapMemory, VkResult, VkDevice, VkDeviceMemory, VkDeviceSize, VkDeviceSize, VkMemoryMapFlags, void **);
 VK_INSTANCE(vkQueueSubmit, VkResult, VkQueue, uint32_t, const VkSubmitInfo *, VkFence);
