@@ -2,7 +2,7 @@ name: Build Windows DLLs
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
   workflow_dispatch:
 
@@ -10,6 +10,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     name: Build (Windows) and publish DLLs
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,11 +20,9 @@ jobs:
         with:
           cmake-version: '3.24'
 
-      # Configura o compilador MSVC e as variáveis de ambiente necessárias
       - name: Setup MSVC Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
 
-      # Instala o ccache no ambiente do Windows via Chocolatey
       - name: Install ccache
         run: choco install ccache -y
 
@@ -31,9 +30,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key:  runner.os -cmake-{{ hashFiles('**/CMakeLists.txt', 'src/**') }}
+          key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt', 'src/**') }}
           restore-keys: |
-            \${{ runner.os }}-cmake-
+            ${{ runner.os }}-cmake-
 
       - name: Configure CMake (Ninja)
         run: |
@@ -56,13 +55,19 @@ jobs:
       - name: Collect DLLs
         shell: pwsh
         run: |
-          \$out = "artifacts"
-          New-Item -ItemType Directory -Path \$out -Force | Out-Null
-          Get-ChildItem -Path build -Recurse -Filter '*.dll' -ErrorAction SilentlyContinue | ForEach-Object {
-            Copy-Item \(_.FullName -Destination\)out -Force
-          }
-          Write-Host "DLLs copied to \${out}:"
-          Get-ChildItem -Path out -Recurse -File | ForEach-Object Write-Host _.FullName }
+          $out = "artifacts"
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+
+          Get-ChildItem -Path build -Recurse -Filter "*.dll" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              Copy-Item $_.FullName -Destination $out -Force
+            }
+
+          Write-Host "DLLs copied to ${out}:"
+          Get-ChildItem -Path $out -Recurse -File |
+            ForEach-Object {
+              Write-Host $_.FullName
+            }
 
       - name: Upload DLL artifacts
         uses: actions/upload-artifact@v4
