@@ -178,6 +178,10 @@ public:
 	void drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance);
 	void drawIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
 	void drawIndexedIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
+	void drawIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
+	                       uint32_t maxDrawCount, uint32_t stride);
+	void drawIndexedIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
+	                              uint32_t maxDrawCount, uint32_t stride);
 
 	void beginDebugUtilsLabel(const VkDebugUtilsLabelEXT *pLabelInfo);
 	void endDebugUtilsLabel();

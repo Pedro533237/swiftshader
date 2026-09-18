@@ -1151,6 +1151,76 @@ private:
 	const uint32_t stride;
 };
 
+class CmdDrawIndirectCount : public CmdDrawBase
+{
+public:
+	CmdDrawIndirectCount(vk::Buffer *buffer, VkDeviceSize offset, vk::Buffer *countBuffer,
+	                     VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
+	    : buffer(buffer)
+	    , offset(offset)
+	    , countBuffer(countBuffer)
+	    , countBufferOffset(countBufferOffset)
+	    , maxDrawCount(maxDrawCount)
+	    , stride(stride)
+	{
+	}
+
+	void execute(vk::CommandBuffer::ExecutionState &executionState) override
+	{
+		const uint32_t drawCount = sw::min(*reinterpret_cast<const uint32_t *>(countBuffer->getOffsetPointer(countBufferOffset)), maxDrawCount);
+		for(uint32_t drawId = 0; drawId < drawCount; drawId++)
+		{
+			const auto *cmd = reinterpret_cast<const VkDrawIndirectCommand *>(buffer->getOffsetPointer(offset + drawId * stride));
+			draw(executionState, false, cmd->vertexCount, cmd->instanceCount, 0, cmd->firstVertex, cmd->firstInstance);
+		}
+	}
+
+	std::string description() override { return "vkCmdDrawIndirectCount()"; }
+
+private:
+	const vk::Buffer *const buffer;
+	const VkDeviceSize offset;
+	const vk::Buffer *const countBuffer;
+	const VkDeviceSize countBufferOffset;
+	const uint32_t maxDrawCount;
+	const uint32_t stride;
+};
+
+class CmdDrawIndexedIndirectCount : public CmdDrawBase
+{
+public:
+	CmdDrawIndexedIndirectCount(vk::Buffer *buffer, VkDeviceSize offset, vk::Buffer *countBuffer,
+	                            VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
+	    : buffer(buffer)
+	    , offset(offset)
+	    , countBuffer(countBuffer)
+	    , countBufferOffset(countBufferOffset)
+	    , maxDrawCount(maxDrawCount)
+	    , stride(stride)
+	{
+	}
+
+	void execute(vk::CommandBuffer::ExecutionState &executionState) override
+	{
+		const uint32_t drawCount = sw::min(*reinterpret_cast<const uint32_t *>(countBuffer->getOffsetPointer(countBufferOffset)), maxDrawCount);
+		for(uint32_t drawId = 0; drawId < drawCount; drawId++)
+		{
+			const auto *cmd = reinterpret_cast<const VkDrawIndexedIndirectCommand *>(buffer->getOffsetPointer(offset + drawId * stride));
+			draw(executionState, true, cmd->indexCount, cmd->instanceCount, cmd->firstIndex, cmd->vertexOffset, cmd->firstInstance);
+		}
+	}
+
+	std::string description() override { return "vkCmdDrawIndexedIndirectCount()"; }
+
+private:
+	const vk::Buffer *const buffer;
+	const VkDeviceSize offset;
+	const vk::Buffer *const countBuffer;
+	const VkDeviceSize countBufferOffset;
+	const uint32_t maxDrawCount;
+	const uint32_t stride;
+};
+
 class CmdCopyImage : public vk::CommandBuffer::Command
 {
 public:
@@ -2541,6 +2611,18 @@ void CommandBuffer::drawIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t d
 void CommandBuffer::drawIndexedIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
 {
 	addCommand<::CmdDrawIndexedIndirect>(buffer, offset, drawCount, stride);
+}
+
+void CommandBuffer::drawIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
+                                      uint32_t maxDrawCount, uint32_t stride)
+{
+	addCommand<::CmdDrawIndirectCount>(buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
+}
+
+void CommandBuffer::drawIndexedIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
+                                             uint32_t maxDrawCount, uint32_t stride)
+{
+	addCommand<::CmdDrawIndexedIndirectCount>(buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
 }
 
 void CommandBuffer::beginDebugUtilsLabel(const VkDebugUtilsLabelEXT *pLabelInfo)
