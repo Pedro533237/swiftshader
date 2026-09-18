@@ -352,6 +352,7 @@ void Inputs::initialize(const VkPipelineVertexInputStateCreateInfo *vertexInputS
 	// when considering attributes. TODO: unfuse buffers from attributes in backend, is old GL model.
 	uint32_t vertexStrides[MAX_VERTEX_INPUT_BINDINGS];
 	uint32_t instanceStrides[MAX_VERTEX_INPUT_BINDINGS];
+	uint32_t instanceDivisors[MAX_VERTEX_INPUT_BINDINGS] = {};
 	VkVertexInputRate inputRates[MAX_VERTEX_INPUT_BINDINGS];
 	for(uint32_t i = 0; i < vertexInputState->vertexBindingDescriptionCount; i++)
 	{
@@ -359,6 +360,22 @@ void Inputs::initialize(const VkPipelineVertexInputStateCreateInfo *vertexInputS
 		inputRates[desc.binding] = desc.inputRate;
 		vertexStrides[desc.binding] = desc.inputRate == VK_VERTEX_INPUT_RATE_VERTEX ? desc.stride : 0;
 		instanceStrides[desc.binding] = desc.inputRate == VK_VERTEX_INPUT_RATE_INSTANCE ? desc.stride : 0;
+		instanceDivisors[desc.binding] = 1;
+	}
+
+	const auto *extension = reinterpret_cast<const VkBaseInStructure *>(vertexInputState->pNext);
+	while(extension)
+	{
+		if(extension->sType == VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO_EXT)
+		{
+			const auto *divisorState = reinterpret_cast<const VkPipelineVertexInputDivisorStateCreateInfoEXT *>(extension);
+			for(uint32_t i = 0; i < divisorState->vertexBindingDivisorCount; i++)
+			{
+				const auto &desc = divisorState->pVertexBindingDivisors[i];
+				instanceDivisors[desc.binding] = desc.divisor;
+			}
+		}
+		extension = extension->pNext;
 	}
 
 	for(uint32_t i = 0; i < vertexInputState->vertexAttributeDescriptionCount; i++)
@@ -369,6 +386,7 @@ void Inputs::initialize(const VkPipelineVertexInputStateCreateInfo *vertexInputS
 		input.offset = desc.offset;
 		input.binding = desc.binding;
 		input.inputRate = inputRates[desc.binding];
+		input.instanceDivisor = instanceDivisors[desc.binding];
 		if(!dynamicStateFlags.dynamicVertexInputBindingStride)
 		{
 			// The following gets overriden with dynamic state anyway and setting it is
@@ -397,8 +415,9 @@ void Inputs::bindVertexInputs(int firstInstance)
 		if(attrib.format != VK_FORMAT_UNDEFINED)
 		{
 			const auto &vertexInput = vertexInputBindings[attrib.binding];
+			const uint32_t instanceIndex = attrib.instanceDivisor == 0 ? 0 : firstInstance / attrib.instanceDivisor;
 			VkDeviceSize offset = attrib.offset + vertexInput.offset +
-			                      getInstanceStride(i) * firstInstance;
+			                      getInstanceStride(i) * instanceIndex;
 			attrib.buffer = vertexInput.buffer ? vertexInput.buffer->getOffsetPointer(offset) : nullptr;
 
 			VkDeviceSize size = vertexInput.buffer ? vertexInput.buffer->getSize() : 0;
@@ -427,6 +446,7 @@ void Inputs::setVertexInputBinding(const VertexInputBinding bindings[], const Dy
 			input.offset = desc.offset;
 			input.binding = desc.binding;
 			input.inputRate = bindingDesc.inputRate;
+			input.instanceDivisor = bindingDesc.divisor;
 		}
 	}
 
@@ -444,13 +464,21 @@ void Inputs::setVertexInputBinding(const VertexInputBinding bindings[], const Dy
 	}
 }
 
-void Inputs::advanceInstanceAttributes()
+void Inputs::advanceInstanceAttributes(uint32_t instance)
 {
 	for(uint32_t i = 0; i < vk::MAX_VERTEX_INPUT_BINDINGS; i++)
 	{
 		auto &attrib = stream[i];
 
 		VkDeviceSize instanceStride = getInstanceStride(i);
+		if(attrib.instanceDivisor == 0)
+		{
+			continue;
+		}
+		if((instance + 1) % attrib.instanceDivisor != 0)
+		{
+			continue;
+		}
 		if((attrib.format != VK_FORMAT_UNDEFINED) && instanceStride && (instanceStride < attrib.robustnessSize))
 		{
 			// Under the casts: attrib.buffer += instanceStride

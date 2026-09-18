@@ -146,7 +146,7 @@ static void getPhysicalDeviceProtectedMemoryFeatures(T *features)
 template<typename T>
 static void getPhysicalDeviceShaderDrawParameterFeatures(T *features)
 {
-	features->shaderDrawParameters = VK_FALSE;
+	features->shaderDrawParameters = VK_TRUE;
 }
 
 template<typename T>
@@ -199,7 +199,14 @@ static void getPhysicalDeviceImageRobustnessFeatures(T *features)
 template<typename T>
 static void getPhysicalDeviceShaderDrawParametersFeatures(T *features)
 {
-	features->shaderDrawParameters = VK_FALSE;
+	features->shaderDrawParameters = VK_TRUE;
+}
+
+template<typename T>
+static void getPhysicalDeviceVertexAttributeDivisorFeatures(T *features)
+{
+	features->vertexAttributeInstanceRateDivisor = VK_TRUE;
+	features->vertexAttributeInstanceRateZeroDivisor = VK_TRUE;
 }
 
 template<typename T>
@@ -566,6 +573,9 @@ void PhysicalDevice::getFeatures2(VkPhysicalDeviceFeatures2 *features) const
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES:
 			getPhysicalDeviceShaderDrawParameterFeatures(reinterpret_cast<VkPhysicalDeviceShaderDrawParameterFeatures *>(curExtension));
 			break;
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT:
+			getPhysicalDeviceVertexAttributeDivisorFeatures(reinterpret_cast<VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT *>(curExtension));
+			break;
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES:
 			getPhysicalDeviceHostQueryResetFeatures(reinterpret_cast<VkPhysicalDeviceHostQueryResetFeatures *>(curExtension));
 			break;
@@ -926,6 +936,11 @@ void PhysicalDevice::getProperties(VkPhysicalDevicePushDescriptorProperties *pro
 	getPushDescriptorProperties(properties);
 }
 
+void PhysicalDevice::getProperties(VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT *properties) const
+{
+	properties->maxVertexAttribDivisor = UINT32_MAX;
+}
+
 template<typename T>
 static void getMultiviewProperties(T *properties)
 {
@@ -1228,6 +1243,11 @@ void PhysicalDevice::getProperties(VkPhysicalDeviceDriverProperties *properties)
 void PhysicalDevice::getProperties(VkPhysicalDeviceLineRasterizationPropertiesEXT *properties) const
 {
 	properties->lineSubPixelPrecisionBits = vk::SUBPIXEL_PRECISION_BITS;
+}
+
+void PhysicalDevice::getProperties(VkPhysicalDeviceMultiDrawPropertiesEXT *properties) const
+{
+	properties->maxMultiDrawCount = UINT32_MAX;
 }
 
 void PhysicalDevice::getProperties(VkPhysicalDeviceProvokingVertexPropertiesEXT *properties) const
@@ -1611,6 +1631,13 @@ bool PhysicalDevice::hasExtendedFeatures(const VkPhysicalDeviceMultiDrawFeatures
 {
 	auto supported = getSupportedFeatures(requested);
 	return CheckFeature(requested, supported, multiDraw);
+}
+
+bool PhysicalDevice::hasExtendedFeatures(const VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT *requested) const
+{
+	auto supported = getSupportedFeatures(requested);
+	return CheckFeature(requested, supported, vertexAttributeInstanceRateDivisor) &&
+	       CheckFeature(requested, supported, vertexAttributeInstanceRateZeroDivisor);
 }
 
 bool PhysicalDevice::hasExtendedFeatures(const VkPhysicalDeviceExtendedDynamicState2FeaturesEXT *requested) const

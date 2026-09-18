@@ -143,7 +143,7 @@ struct Inputs
 
 	void bindVertexInputs(int firstInstance);
 	void setVertexInputBinding(const VertexInputBinding vertexInputBindings[], const DynamicState &dynamicState);
-	void advanceInstanceAttributes();
+	void advanceInstanceAttributes(uint32_t instance);
 	VkDeviceSize getVertexStride(uint32_t i) const;
 	VkDeviceSize getInstanceStride(uint32_t i) const;
 

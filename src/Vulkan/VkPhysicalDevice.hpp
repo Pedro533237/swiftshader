@@ -40,6 +40,7 @@ public:
 
 	bool hasExtendedFeatures(const VkPhysicalDeviceLineRasterizationFeaturesEXT *features) const;
 	bool hasExtendedFeatures(const VkPhysicalDeviceMultiDrawFeaturesEXT *features) const;
+	bool hasExtendedFeatures(const VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT *features) const;
 	bool hasExtendedFeatures(const VkPhysicalDeviceProvokingVertexFeaturesEXT *features) const;
 	bool hasExtendedFeatures(const VkPhysicalDeviceVulkan11Features *features) const;
 	bool hasExtendedFeatures(const VkPhysicalDeviceVulkan12Features *features) const;
@@ -92,6 +93,7 @@ public:
 	void getProperties(VkPhysicalDeviceExternalMemoryHostPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceDriverProperties *properties) const;
 	void getProperties(VkPhysicalDeviceLineRasterizationPropertiesEXT *properties) const;
+	void getProperties(VkPhysicalDeviceMultiDrawPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceProvokingVertexPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceFloatControlsProperties *) const;
 	void getProperties(VkPhysicalDeviceSamplerFilterMinmaxProperties *properties) const;
@@ -107,6 +109,7 @@ public:
 	void getProperties(VkPhysicalDevicePipelineRobustnessPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceHostImageCopyPropertiesEXT *properties) const;
+	void getProperties(VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT *properties) const;
 	void getProperties(VkPhysicalDeviceVulkan11Properties *properties) const;
 	void getProperties(VkPhysicalDeviceVulkan12Properties *properties) const;
 	void getProperties(VkPhysicalDeviceVulkan13Properties *properties) const;
