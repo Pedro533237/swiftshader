@@ -3610,7 +3610,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetRenderingAttachmentLocationsKHR(VkCommandBuff
 {
 	TRACE("(VkCommandBuffer commandBuffer = %p)", commandBuffer);
 
-	// No-op; the same information is provided in pipeline create info.
+	vk::Cast(commandBuffer)->setRenderingAttachmentLocations(pLocationInfo);
 }
 
 VKAPI_ATTR void VKAPI_CALL vkCmdSetRenderingInputAttachmentIndicesKHR(VkCommandBuffer commandBuffer, const VkRenderingInputAttachmentIndexInfoKHR *pInputAttachmentIndexInfo)

@@ -180,7 +180,7 @@ void Renderer::operator delete(void *mem)
 	vk::freeHostMemory(mem, vk::NULL_ALLOCATION_CALLBACKS);
 }
 
-void Renderer::draw(const vk::GraphicsPipeline *pipeline, const vk::DynamicState &dynamicState, unsigned int count, int baseVertex,
+void Renderer::draw(const vk::GraphicsPipeline *pipeline, const vk::Attachments &attachments, const vk::DynamicState &dynamicState, unsigned int count, int baseVertex,
                     CountedEvent *events, int instanceID, int layer, void *indexBuffer, const VkRect2D &renderArea,
                     const vk::Pipeline::PushConstantStorage &pushConstants, bool update)
 {
@@ -228,8 +228,6 @@ void Renderer::draw(const vk::GraphicsPipeline *pipeline, const vk::DynamicState
 
 		const sw::SpirvShader *fragmentShader = pipeline->getShader(VK_SHADER_STAGE_FRAGMENT_BIT).get();
 		const sw::SpirvShader *vertexShader = pipeline->getShader(VK_SHADER_STAGE_VERTEX_BIT).get();
-
-		const vk::Attachments attachments = pipeline->getAttachments();
 
 		vertexState = vertexProcessor.update(pipelineState, vertexShader, inputs);
 		vertexRoutine = vertexProcessor.routine(vertexState, preRasterizationState.getPipelineLayout(), vertexShader, inputs.getDescriptorSets());
@@ -420,7 +418,6 @@ void Renderer::draw(const vk::GraphicsPipeline *pipeline, const vk::DynamicState
 
 		// Viewport
 		{
-			const vk::Attachments attachments = pipeline->getAttachments();
 			if(attachments.depthBuffer)
 			{
 				switch(attachments.depthBuffer->getFormat(VK_IMAGE_ASPECT_DEPTH_BIT))
@@ -441,8 +438,6 @@ void Renderer::draw(const vk::GraphicsPipeline *pipeline, const vk::DynamicState
 
 		// Target
 		{
-			const vk::Attachments attachments = pipeline->getAttachments();
-
 			for(int index = 0; index < MAX_COLOR_BUFFERS; index++)
 			{
 				draw->colorBuffer[index] = attachments.colorBuffer[index];
