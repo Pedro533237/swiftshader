@@ -111,6 +111,18 @@ private:
 
 struct Attachments
 {
+	Attachments()
+	{
+		// An omitted VkRenderingAttachmentLocationInfoKHR uses the identity
+		// mapping. This is also the required default for graphics pipeline
+		// libraries which don't include fragment-output interface state.
+		for(uint32_t i = 0; i < sw::MAX_COLOR_BUFFERS; ++i)
+		{
+			indexToLocation[i] = i;
+			locationToIndex[i] = i;
+		}
+	}
+
 	ImageView *colorBuffer[sw::MAX_COLOR_BUFFERS] = {};
 	ImageView *depthBuffer = nullptr;
 	ImageView *stencilBuffer = nullptr;
