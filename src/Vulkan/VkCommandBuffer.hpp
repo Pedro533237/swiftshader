@@ -277,7 +277,7 @@ private:
 		struct DescriptorBinding
 		{
 			const PipelineLayout *layout = nullptr;
-			VkDescriptorSet descriptorSets[MAX_BOUND_DESCRIPTOR_SETS] = { VK_NULL_HANDLE };
+			VkDescriptorSet descriptorSets[MAX_BOUND_DESCRIPTOR_SETS] = { { VK_NULL_HANDLE } };
 			uint32_t dynamicOffsets[MAX_DESCRIPTOR_SET_COMBINED_BUFFERS_DYNAMIC] = {};
 			bool valid = false;
 		};

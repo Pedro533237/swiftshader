@@ -2130,9 +2130,10 @@ void CommandBuffer::bindVertexBuffers(uint32_t firstBinding, uint32_t bindingCou
 		const VkDeviceSize offset = pOffsets[i];
 		const VkDeviceSize size = pSizes ? pSizes[i] : 0;
 		const VkDeviceSize stride = pStrides ? pStrides[i] : 0;
-		const bool hasStride = (pStrides != nullptr);
 
 #if SWIFTSHADER_AGGRESSIVE_BATCHING
+		const bool hasStride = (pStrides != nullptr);
+
 		if(binding < MAX_VERTEX_INPUT_BINDINGS)
 		{
 			const auto &cached = recordStateCache.vertexBindings[binding];
