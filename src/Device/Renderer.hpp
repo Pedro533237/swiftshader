@@ -67,6 +67,8 @@ struct DrawData
 
 	int instanceID;
 	int baseVertex;
+	int baseInstance;
+	uint32_t drawID;
 	float lineWidth;
 	int layer;
 
@@ -209,7 +211,7 @@ public:
 	bool hasOcclusionQuery() const { return occlusionQuery != nullptr; }
 
 	void draw(const vk::GraphicsPipeline *pipeline, const vk::Attachments &attachments, const vk::DynamicState &dynamicState, unsigned int count, int baseVertex,
-	          CountedEvent *events, int instanceID, int layer, void *indexBuffer, const VkRect2D &renderArea,
+	          CountedEvent *events, int instanceID, int baseInstance, uint32_t drawID, int layer, void *indexBuffer, const VkRect2D &renderArea,
 	          const vk::Pipeline::PushConstantStorage &pushConstants, bool update = true);
 
 	void addQuery(vk::Query *query);
