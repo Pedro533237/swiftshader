@@ -457,6 +457,7 @@ static const ExtensionProperties deviceExtensionProperties[] = {
 	{ { VK_GOOGLE_USER_TYPE_EXTENSION_NAME, VK_GOOGLE_USER_TYPE_SPEC_VERSION } },
 	{ { VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME, VK_KHR_VULKAN_MEMORY_MODEL_SPEC_VERSION } },
 	{ { VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME, VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_SPEC_VERSION } },
+	{ { VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME, VK_KHR_DRAW_INDIRECT_COUNT_SPEC_VERSION } },
 	{ { VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME, VK_KHR_PIPELINE_LIBRARY_SPEC_VERSION } },
 	{ { VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME, VK_KHR_UNIFIED_IMAGE_LAYOUTS_SPEC_VERSION } },
 	{ { VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME, VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_SPEC_VERSION } },
@@ -3230,14 +3231,14 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDrawIndirectCount(VkCommandBuffer commandBuffer,
 {
 	TRACE("(VkCommandBuffer commandBuffer = %p, VkBuffer buffer = %p, VkDeviceSize offset = %d, VkBuffer countBuffer = %p, VkDeviceSize countBufferOffset = %d, uint32_t maxDrawCount = %d, uint32_t stride = %d",
 	      commandBuffer, static_cast<void *>(buffer), int(offset), static_cast<void *>(countBuffer), int(countBufferOffset), int(maxDrawCount), int(stride));
-	UNSUPPORTED("VK_KHR_draw_indirect_count");
+	vk::Cast(commandBuffer)->drawIndirectCount(vk::Cast(buffer), offset, vk::Cast(countBuffer), countBufferOffset, maxDrawCount, stride);
 }
 
 VKAPI_ATTR void VKAPI_CALL vkCmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
 {
 	TRACE("(VkCommandBuffer commandBuffer = %p, VkBuffer buffer = %p, VkDeviceSize offset = %d, VkBuffer countBuffer = %p, VkDeviceSize countBufferOffset = %d, uint32_t maxDrawCount = %d, uint32_t stride = %d",
 	      commandBuffer, static_cast<void *>(buffer), int(offset), static_cast<void *>(countBuffer), int(countBufferOffset), int(maxDrawCount), int(stride));
-	UNSUPPORTED("VK_KHR_draw_indirect_count");
+	vk::Cast(commandBuffer)->drawIndexedIndirectCount(vk::Cast(buffer), offset, vk::Cast(countBuffer), countBufferOffset, maxDrawCount, stride);
 }
 
 VKAPI_ATTR void VKAPI_CALL vkCmdDispatch(VkCommandBuffer commandBuffer, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
@@ -3610,7 +3611,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetRenderingAttachmentLocationsKHR(VkCommandBuff
 {
 	TRACE("(VkCommandBuffer commandBuffer = %p)", commandBuffer);
 
-	// No-op; the same information is provided in pipeline create info.
+	vk::Cast(commandBuffer)->setRenderingAttachmentLocations(pLocationInfo);
 }
 
 VKAPI_ATTR void VKAPI_CALL vkCmdSetRenderingInputAttachmentIndicesKHR(VkCommandBuffer commandBuffer, const VkRenderingInputAttachmentIndexInfoKHR *pInputAttachmentIndexInfo)

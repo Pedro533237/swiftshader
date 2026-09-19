@@ -150,6 +150,7 @@ public:
 	void execute(vk::CommandBuffer::ExecutionState &executionState) override
 	{
 		executionState.dynamicRendering = &dynamicRendering;
+		executionState.hasRenderingAttachmentLocations = false;
 
 		if(!executionState.dynamicRendering->resume())
 		{
@@ -201,6 +202,32 @@ public:
 
 private:
 	vk::DynamicRendering dynamicRendering;
+};
+
+class CmdSetRenderingAttachmentLocations : public vk::CommandBuffer::Command
+{
+public:
+	explicit CmdSetRenderingAttachmentLocations(const VkRenderingAttachmentLocationInfoKHR *pLocationInfo)
+	    : colorAttachmentCount(pLocationInfo->colorAttachmentCount)
+	{
+		ASSERT(colorAttachmentCount <= sw::MAX_COLOR_BUFFERS);
+		memcpy(colorAttachmentLocations, pLocationInfo->pColorAttachmentLocations,
+		       colorAttachmentCount * sizeof(colorAttachmentLocations[0]));
+	}
+
+	void execute(vk::CommandBuffer::ExecutionState &executionState) override
+	{
+		executionState.renderingAttachmentLocationCount = colorAttachmentCount;
+		memcpy(executionState.renderingAttachmentLocations, colorAttachmentLocations,
+		       colorAttachmentCount * sizeof(colorAttachmentLocations[0]));
+		executionState.hasRenderingAttachmentLocations = true;
+	}
+
+	std::string description() override { return "vkCmdSetRenderingAttachmentLocationsKHR()"; }
+
+private:
+	const uint32_t colorAttachmentCount;
+	uint32_t colorAttachmentLocations[sw::MAX_COLOR_BUFFERS] = {};
 };
 
 class CmdEndRendering : public vk::CommandBuffer::Command
@@ -965,7 +992,9 @@ public:
 
 		auto *pipeline = static_cast<vk::GraphicsPipeline *>(pipelineState.pipeline);
 
-		vk::Attachments &attachments = pipeline->getAttachments();
+		// Attachment views and dynamic-rendering attachment locations are command-buffer
+		// state. Keep the pipeline's static attachment mapping immutable.
+		vk::Attachments attachments = pipeline->getAttachments();
 		executionState.bindAttachments(&attachments);
 
 		vk::Inputs &inputs = pipeline->getInputs();
@@ -997,7 +1026,7 @@ public:
 
 				for(auto indexBuffer : indexBuffers)
 				{
-					executionState.renderer->draw(pipeline, executionState.dynamicState, indexBuffer.first, vertexOffset,
+					executionState.renderer->draw(pipeline, attachments, executionState.dynamicState, indexBuffer.first, vertexOffset,
 					                              executionState.events, instance, layer, indexBuffer.second,
 					                              renderArea, executionState.pushConstants);
 				}
@@ -1119,6 +1148,76 @@ private:
 	const vk::Buffer *const buffer;
 	const VkDeviceSize offset;
 	const uint32_t drawCount;
+	const uint32_t stride;
+};
+
+class CmdDrawIndirectCount : public CmdDrawBase
+{
+public:
+	CmdDrawIndirectCount(vk::Buffer *buffer, VkDeviceSize offset, vk::Buffer *countBuffer,
+	                     VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
+	    : buffer(buffer)
+	    , offset(offset)
+	    , countBuffer(countBuffer)
+	    , countBufferOffset(countBufferOffset)
+	    , maxDrawCount(maxDrawCount)
+	    , stride(stride)
+	{
+	}
+
+	void execute(vk::CommandBuffer::ExecutionState &executionState) override
+	{
+		const uint32_t drawCount = sw::min(*reinterpret_cast<const uint32_t *>(countBuffer->getOffsetPointer(countBufferOffset)), maxDrawCount);
+		for(uint32_t drawId = 0; drawId < drawCount; drawId++)
+		{
+			const auto *cmd = reinterpret_cast<const VkDrawIndirectCommand *>(buffer->getOffsetPointer(offset + drawId * stride));
+			draw(executionState, false, cmd->vertexCount, cmd->instanceCount, 0, cmd->firstVertex, cmd->firstInstance);
+		}
+	}
+
+	std::string description() override { return "vkCmdDrawIndirectCount()"; }
+
+private:
+	const vk::Buffer *const buffer;
+	const VkDeviceSize offset;
+	const vk::Buffer *const countBuffer;
+	const VkDeviceSize countBufferOffset;
+	const uint32_t maxDrawCount;
+	const uint32_t stride;
+};
+
+class CmdDrawIndexedIndirectCount : public CmdDrawBase
+{
+public:
+	CmdDrawIndexedIndirectCount(vk::Buffer *buffer, VkDeviceSize offset, vk::Buffer *countBuffer,
+	                            VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
+	    : buffer(buffer)
+	    , offset(offset)
+	    , countBuffer(countBuffer)
+	    , countBufferOffset(countBufferOffset)
+	    , maxDrawCount(maxDrawCount)
+	    , stride(stride)
+	{
+	}
+
+	void execute(vk::CommandBuffer::ExecutionState &executionState) override
+	{
+		const uint32_t drawCount = sw::min(*reinterpret_cast<const uint32_t *>(countBuffer->getOffsetPointer(countBufferOffset)), maxDrawCount);
+		for(uint32_t drawId = 0; drawId < drawCount; drawId++)
+		{
+			const auto *cmd = reinterpret_cast<const VkDrawIndexedIndirectCommand *>(buffer->getOffsetPointer(offset + drawId * stride));
+			draw(executionState, true, cmd->indexCount, cmd->instanceCount, cmd->firstIndex, cmd->vertexOffset, cmd->firstInstance);
+		}
+	}
+
+	std::string description() override { return "vkCmdDrawIndexedIndirectCount()"; }
+
+private:
+	const vk::Buffer *const buffer;
+	const VkDeviceSize offset;
+	const vk::Buffer *const countBuffer;
+	const VkDeviceSize countBufferOffset;
+	const uint32_t maxDrawCount;
 	const uint32_t stride;
 };
 
@@ -1966,6 +2065,13 @@ void CommandBuffer::endRendering()
 	addCommand<::CmdEndRendering>();
 }
 
+void CommandBuffer::setRenderingAttachmentLocations(const VkRenderingAttachmentLocationInfoKHR *pLocationInfo)
+{
+	ASSERT(state == RECORDING);
+
+	addCommand<::CmdSetRenderingAttachmentLocations>(pLocationInfo);
+}
+
 void CommandBuffer::setDeviceMask(uint32_t deviceMask)
 {
 	// SwiftShader only has one device, so we ignore the device mask
@@ -2507,6 +2613,18 @@ void CommandBuffer::drawIndexedIndirect(Buffer *buffer, VkDeviceSize offset, uin
 	addCommand<::CmdDrawIndexedIndirect>(buffer, offset, drawCount, stride);
 }
 
+void CommandBuffer::drawIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
+                                      uint32_t maxDrawCount, uint32_t stride)
+{
+	addCommand<::CmdDrawIndirectCount>(buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
+}
+
+void CommandBuffer::drawIndexedIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
+                                             uint32_t maxDrawCount, uint32_t stride)
+{
+	addCommand<::CmdDrawIndexedIndirectCount>(buffer, offset, countBuffer, countBufferOffset, maxDrawCount, stride);
+}
+
 void CommandBuffer::beginDebugUtilsLabel(const VkDebugUtilsLabelEXT *pLabelInfo)
 {
 	// Optional debug label region
@@ -2580,6 +2698,24 @@ void CommandBuffer::ExecutionState::bindAttachments(Attachments *attachments)
 	}
 	else if(dynamicRendering)
 	{
+		if(hasRenderingAttachmentLocations)
+		{
+			for(uint32_t i = 0; i < sw::MAX_COLOR_BUFFERS; ++i)
+			{
+				attachments->indexToLocation[i] = VK_ATTACHMENT_UNUSED;
+				attachments->locationToIndex[i] = VK_ATTACHMENT_UNUSED;
+			}
+
+			for(uint32_t i = 0; i < renderingAttachmentLocationCount; ++i)
+			{
+				const uint32_t location = renderingAttachmentLocations[i];
+				if(location < sw::MAX_COLOR_BUFFERS)
+				{
+					attachments->indexToLocation[i] = location;
+					attachments->locationToIndex[location] = i;
+				}
+			}
+		}
 		dynamicRendering->getAttachments(attachments);
 	}
 }

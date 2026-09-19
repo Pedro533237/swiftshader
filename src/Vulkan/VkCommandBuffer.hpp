@@ -100,6 +100,7 @@ public:
 	void executeCommands(uint32_t commandBufferCount, const VkCommandBuffer *pCommandBuffers);
 	void beginRendering(const VkRenderingInfo *pRenderingInfo);
 	void endRendering();
+	void setRenderingAttachmentLocations(const VkRenderingAttachmentLocationInfoKHR *pLocationInfo);
 
 	void setDeviceMask(uint32_t deviceMask);
 	void dispatchBase(uint32_t baseGroupX, uint32_t baseGroupY, uint32_t baseGroupZ,
@@ -177,6 +178,10 @@ public:
 	void drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance);
 	void drawIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
 	void drawIndexedIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
+	void drawIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
+	                       uint32_t maxDrawCount, uint32_t stride);
+	void drawIndexedIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
+	                              uint32_t maxDrawCount, uint32_t stride);
 
 	void beginDebugUtilsLabel(const VkDebugUtilsLabelEXT *pLabelInfo);
 	void endDebugUtilsLabel();
@@ -198,6 +203,9 @@ public:
 		RenderPass *renderPass = nullptr;
 		Framebuffer *renderPassFramebuffer = nullptr;
 		DynamicRendering *dynamicRendering = nullptr;
+		uint32_t renderingAttachmentLocations[sw::MAX_COLOR_BUFFERS] = {};
+		uint32_t renderingAttachmentLocationCount = 0;
+		bool hasRenderingAttachmentLocations = false;
 
 		// VK_PIPELINE_BIND_POINT_GRAPHICS = 0
 		// VK_PIPELINE_BIND_POINT_COMPUTE = 1
