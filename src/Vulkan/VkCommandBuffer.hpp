@@ -174,8 +174,8 @@ public:
 	void resetEvent(Event *event, VkPipelineStageFlags2 stageMask);
 	void waitEvents(uint32_t eventCount, const VkEvent *pEvents, const VkDependencyInfo &pDependencyInfo);
 
-	void draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
-	void drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance);
+	void draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance, uint32_t drawID = 0);
+	void drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance, uint32_t drawID = 0);
 	void drawIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
 	void drawIndexedIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
 	void drawIndirectCount(Buffer *buffer, VkDeviceSize offset, Buffer *countBuffer, VkDeviceSize countBufferOffset,
@@ -277,7 +277,7 @@ private:
 		struct DescriptorBinding
 		{
 			const PipelineLayout *layout = nullptr;
-			VkDescriptorSet descriptorSets[MAX_BOUND_DESCRIPTOR_SETS] = { VK_NULL_HANDLE };
+			VkDescriptorSet descriptorSets[MAX_BOUND_DESCRIPTOR_SETS] = { { VK_NULL_HANDLE } };
 			uint32_t dynamicOffsets[MAX_DESCRIPTOR_SET_COMBINED_BUFFERS_DYNAMIC] = {};
 			bool valid = false;
 		};

@@ -50,6 +50,22 @@ VertexProgram::VertexProgram(
 		value[builtin.FirstComponent] = As<SIMD::Float>(SIMD::Int(routine.instanceID));
 	});
 
+	routine.setInputBuiltin(spirvShader, spv::BuiltInBaseVertex, [&](const Spirv::BuiltinMapping &builtin, Array<SIMD::Float> &value) {
+		// Used by shader-draw-parameters shaders to address a shared section buffer.
+		ASSERT(builtin.SizeInComponents == 1);
+		value[builtin.FirstComponent] = As<SIMD::Float>(SIMD::Int(*Pointer<Int>(data + OFFSET(DrawData, baseVertex))));
+	});
+
+	routine.setInputBuiltin(spirvShader, spv::BuiltInBaseInstance, [&](const Spirv::BuiltinMapping &builtin, Array<SIMD::Float> &value) {
+		ASSERT(builtin.SizeInComponents == 1);
+		value[builtin.FirstComponent] = As<SIMD::Float>(SIMD::Int(*Pointer<Int>(data + OFFSET(DrawData, baseInstance))));
+	});
+
+	routine.setInputBuiltin(spirvShader, spv::BuiltInDrawIndex, [&](const Spirv::BuiltinMapping &builtin, Array<SIMD::Float> &value) {
+		ASSERT(builtin.SizeInComponents == 1);
+		value[builtin.FirstComponent] = As<SIMD::Float>(SIMD::UInt(*Pointer<UInt>(data + OFFSET(DrawData, drawID))));
+	});
+
 	routine.setInputBuiltin(spirvShader, spv::BuiltInSubgroupSize, [&](const Spirv::BuiltinMapping &builtin, Array<SIMD::Float> &value) {
 		ASSERT(builtin.SizeInComponents == 1);
 		value[builtin.FirstComponent] = As<SIMD::Float>(SIMD::Int(SIMD::Width));

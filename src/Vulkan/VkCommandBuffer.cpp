@@ -986,7 +986,8 @@ class CmdDrawBase : public vk::CommandBuffer::Command
 {
 public:
 	void draw(vk::CommandBuffer::ExecutionState &executionState, bool indexed,
-	          uint32_t count, uint32_t instanceCount, uint32_t first, int32_t vertexOffset, uint32_t firstInstance)
+	          uint32_t count, uint32_t instanceCount, uint32_t first, int32_t vertexOffset, uint32_t firstInstance,
+	          uint32_t drawID = 0)
 	{
 		const auto &pipelineState = executionState.pipelineState[VK_PIPELINE_BIND_POINT_GRAPHICS];
 
@@ -1027,7 +1028,7 @@ public:
 				for(auto indexBuffer : indexBuffers)
 				{
 					executionState.renderer->draw(pipeline, attachments, executionState.dynamicState, indexBuffer.first, vertexOffset,
-					                              executionState.events, instance, layer, indexBuffer.second,
+					                              executionState.events, instance, firstInstance, drawID, layer, indexBuffer.second,
 					                              renderArea, executionState.pushConstants);
 				}
 			}
@@ -1044,17 +1045,18 @@ public:
 class CmdDraw : public CmdDrawBase
 {
 public:
-	CmdDraw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+	CmdDraw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance, uint32_t drawID)
 	    : vertexCount(vertexCount)
 	    , instanceCount(instanceCount)
 	    , firstVertex(firstVertex)
 	    , firstInstance(firstInstance)
+	    , drawID(drawID)
 	{
 	}
 
 	void execute(vk::CommandBuffer::ExecutionState &executionState) override
 	{
-		draw(executionState, false, vertexCount, instanceCount, 0, firstVertex, firstInstance);
+		draw(executionState, false, vertexCount, instanceCount, 0, firstVertex, firstInstance, drawID);
 	}
 
 	std::string description() override { return "vkCmdDraw()"; }
@@ -1064,23 +1066,25 @@ private:
 	const uint32_t instanceCount;
 	const uint32_t firstVertex;
 	const uint32_t firstInstance;
+	const uint32_t drawID;
 };
 
 class CmdDrawIndexed : public CmdDrawBase
 {
 public:
-	CmdDrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+	CmdDrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance, uint32_t drawID)
 	    : indexCount(indexCount)
 	    , instanceCount(instanceCount)
 	    , firstIndex(firstIndex)
 	    , vertexOffset(vertexOffset)
 	    , firstInstance(firstInstance)
+	    , drawID(drawID)
 	{
 	}
 
 	void execute(vk::CommandBuffer::ExecutionState &executionState) override
 	{
-		draw(executionState, true, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+		draw(executionState, true, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance, drawID);
 	}
 
 	std::string description() override { return "vkCmdDrawIndexed()"; }
@@ -1091,6 +1095,7 @@ private:
 	const uint32_t firstIndex;
 	const int32_t vertexOffset;
 	const uint32_t firstInstance;
+	const uint32_t drawID;
 };
 
 class CmdDrawIndirect : public CmdDrawBase
@@ -1109,7 +1114,7 @@ public:
 		for(auto drawId = 0u; drawId < drawCount; drawId++)
 		{
 			const auto *cmd = reinterpret_cast<const VkDrawIndirectCommand *>(buffer->getOffsetPointer(offset + drawId * stride));
-			draw(executionState, false, cmd->vertexCount, cmd->instanceCount, 0, cmd->firstVertex, cmd->firstInstance);
+			draw(executionState, false, cmd->vertexCount, cmd->instanceCount, 0, cmd->firstVertex, cmd->firstInstance, drawId);
 		}
 	}
 
@@ -1138,7 +1143,7 @@ public:
 		for(auto drawId = 0u; drawId < drawCount; drawId++)
 		{
 			const auto *cmd = reinterpret_cast<const VkDrawIndexedIndirectCommand *>(buffer->getOffsetPointer(offset + drawId * stride));
-			draw(executionState, true, cmd->indexCount, cmd->instanceCount, cmd->firstIndex, cmd->vertexOffset, cmd->firstInstance);
+			draw(executionState, true, cmd->indexCount, cmd->instanceCount, cmd->firstIndex, cmd->vertexOffset, cmd->firstInstance, drawId);
 		}
 	}
 
@@ -1171,7 +1176,7 @@ public:
 		for(uint32_t drawId = 0; drawId < drawCount; drawId++)
 		{
 			const auto *cmd = reinterpret_cast<const VkDrawIndirectCommand *>(buffer->getOffsetPointer(offset + drawId * stride));
-			draw(executionState, false, cmd->vertexCount, cmd->instanceCount, 0, cmd->firstVertex, cmd->firstInstance);
+			draw(executionState, false, cmd->vertexCount, cmd->instanceCount, 0, cmd->firstVertex, cmd->firstInstance, drawId);
 		}
 	}
 
@@ -1206,7 +1211,7 @@ public:
 		for(uint32_t drawId = 0; drawId < drawCount; drawId++)
 		{
 			const auto *cmd = reinterpret_cast<const VkDrawIndexedIndirectCommand *>(buffer->getOffsetPointer(offset + drawId * stride));
-			draw(executionState, true, cmd->indexCount, cmd->instanceCount, cmd->firstIndex, cmd->vertexOffset, cmd->firstInstance);
+			draw(executionState, true, cmd->indexCount, cmd->instanceCount, cmd->firstIndex, cmd->vertexOffset, cmd->firstInstance, drawId);
 		}
 	}
 
@@ -2125,9 +2130,10 @@ void CommandBuffer::bindVertexBuffers(uint32_t firstBinding, uint32_t bindingCou
 		const VkDeviceSize offset = pOffsets[i];
 		const VkDeviceSize size = pSizes ? pSizes[i] : 0;
 		const VkDeviceSize stride = pStrides ? pStrides[i] : 0;
-		const bool hasStride = (pStrides != nullptr);
 
 #if SWIFTSHADER_AGGRESSIVE_BATCHING
+		const bool hasStride = (pStrides != nullptr);
+
 		if(binding < MAX_VERTEX_INPUT_BINDINGS)
 		{
 			const auto &cached = recordStateCache.vertexBindings[binding];
@@ -2593,14 +2599,14 @@ void CommandBuffer::waitEvents(uint32_t eventCount, const VkEvent *pEvents, cons
 	}
 }
 
-void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+void CommandBuffer::draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance, uint32_t drawID)
 {
-	addCommand<::CmdDraw>(vertexCount, instanceCount, firstVertex, firstInstance);
+	addCommand<::CmdDraw>(vertexCount, instanceCount, firstVertex, firstInstance, drawID);
 }
 
-void CommandBuffer::drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+void CommandBuffer::drawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance, uint32_t drawID)
 {
-	addCommand<::CmdDrawIndexed>(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+	addCommand<::CmdDrawIndexed>(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance, drawID);
 }
 
 void CommandBuffer::drawIndirect(Buffer *buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)

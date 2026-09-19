@@ -181,7 +181,7 @@ void Renderer::operator delete(void *mem)
 }
 
 void Renderer::draw(const vk::GraphicsPipeline *pipeline, const vk::Attachments &attachments, const vk::DynamicState &dynamicState, unsigned int count, int baseVertex,
-                    CountedEvent *events, int instanceID, int layer, void *indexBuffer, const VkRect2D &renderArea,
+                    CountedEvent *events, int instanceID, int baseInstance, uint32_t drawID, int layer, void *indexBuffer, const VkRect2D &renderArea,
                     const vk::Pipeline::PushConstantStorage &pushConstants, bool update)
 {
 	if(count == 0) { return; }
@@ -289,6 +289,8 @@ void Renderer::draw(const vk::GraphicsPipeline *pipeline, const vk::Attachments 
 	data->layer = layer;
 	data->instanceID = instanceID;
 	data->baseVertex = baseVertex;
+	data->baseInstance = baseInstance;
+	data->drawID = drawID;
 	draw->indexType = indexBuffer ? pipeline->getIndexBuffer().getIndexType() : VK_INDEX_TYPE_UINT16;
 
 	draw->vertexRoutine = vertexRoutine;
