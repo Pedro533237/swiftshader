@@ -200,7 +200,7 @@ VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
 	// Conservative synchronization to preserve compatibility with complex mod
 	// stacks that are sensitive to present timing.
-	waitIdle();
+	// waitIdle();
 
 	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
 	{
