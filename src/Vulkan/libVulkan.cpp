@@ -3206,7 +3206,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffe
 	for(uint32_t i = 0; i < drawCount; i++)
 	{
 		const auto *info = reinterpret_cast<const VkMultiDrawIndexedInfoEXT *>(indexInfo + i * effectiveStride);
-		int32_t vertexOffset = pVertexOffset ? pVertexOffset[i] : 0;
+		int32_t vertexOffset = pVertexOffset ? pVertexOffset[i] : info->vertexOffset;
 		vk::Cast(commandBuffer)->drawIndexed(info->indexCount, instanceCount, info->firstIndex, vertexOffset, firstInstance);
 	}
 }
