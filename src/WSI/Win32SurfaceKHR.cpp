@@ -111,7 +111,7 @@ VkResult Win32SurfaceKHR::present(PresentImage *image)
 
 	static const bool useFastGDIPath = [] {
 		const char *opt = std::getenv("SWIFTSHADER_VK_WIN32_GDI_FASTPATH");
-		return !opt || (std::strcmp(opt, "0") != 0);
+		return opt && (std::strcmp(opt, "0") != 0);
 	}();
 	const int tightlyPackedStride = static_cast<int>(extent.width) * bytesPerPixel;
 	if(useFastGDIPath && (stride == tightlyPackedStride))

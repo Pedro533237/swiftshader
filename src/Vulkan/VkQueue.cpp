@@ -198,18 +198,19 @@ void Queue::garbageCollect()
 #ifndef __ANDROID__
 VkResult Queue::present(const VkPresentInfoKHR *presentInfo)
 {
-	// Conservative synchronization to preserve compatibility with complex mod
-	// stacks that are sensitive to present timing.
-	// waitIdle();
+    waitIdle();
 
-	for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
-	{
-		auto *semaphore = vk::DynamicCast<BinarySemaphore>(presentInfo->pWaitSemaphores[i]);
-		if(semaphore)
-		{
-			semaphore->wait();
-		}
-	}
+    for(uint32_t i = 0; i < presentInfo->waitSemaphoreCount; i++)
+    {
+        auto *semaphore =
+            vk::DynamicCast<BinarySemaphore>(
+                presentInfo->pWaitSemaphores[i]);
+
+        if(semaphore)
+        {
+            semaphore->wait();
+        }
+    }
 
 	// Note: VkSwapchainPresentModeInfoEXT can be used to override the present mode, but present
 	// mode is currently ignored by SwiftShader.
