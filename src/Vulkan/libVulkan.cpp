@@ -3196,19 +3196,46 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDrawMultiEXT(VkCommandBuffer commandBuffer, uint
 	}
 }
 
-VKAPI_ATTR void VKAPI_CALL vkCmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer, uint32_t drawCount, const VkMultiDrawIndexedInfoEXT *pIndexInfo, uint32_t instanceCount, uint32_t firstInstance, uint32_t stride, const int32_t *pVertexOffset)
+VKAPI_ATTR void VKAPI_CALL vkCmdDrawMultiIndexedEXT(
+    VkCommandBuffer commandBuffer,
+    uint32_t drawCount,
+    const VkMultiDrawIndexedInfoEXT *pIndexInfo,
+    uint32_t instanceCount,
+    uint32_t firstInstance,
+    uint32_t stride,
+    const int32_t *pVertexOffset)
 {
-	TRACE("(VkCommandBuffer commandBuffer = %p, uint32_t drawCount = %d, const VkMultiDrawIndexedInfoEXT* pIndexInfo = %p, uint32_t instanceCount = %d, uint32_t firstInstance = %d, uint32_t stride = %d, const int32_t* pVertexOffset = %p)",
-	      commandBuffer, int(drawCount), pIndexInfo, int(instanceCount), int(firstInstance), int(stride), pVertexOffset);
+    TRACE("(VkCommandBuffer commandBuffer = %p, uint32_t drawCount = %d, const VkMultiDrawIndexedInfoEXT *pIndexInfo = %p, uint32_t instanceCount = %d, uint32_t firstInstance = %d, uint32_t stride = %d, const int32_t *pVertexOffset = %p)",
+          commandBuffer,
+          int(drawCount),
+          pIndexInfo,
+          int(instanceCount),
+          int(firstInstance),
+          int(stride),
+          pVertexOffset);
 
-	const uint32_t effectiveStride = (stride == 0) ? sizeof(VkMultiDrawIndexedInfoEXT) : stride;
-	const uint8_t *indexInfo = reinterpret_cast<const uint8_t *>(pIndexInfo);
-	for(uint32_t i = 0; i < drawCount; i++)
-	{
-		const auto *info = reinterpret_cast<const VkMultiDrawIndexedInfoEXT *>(indexInfo + i * effectiveStride);
-		int32_t vertexOffset = pVertexOffset ? pVertexOffset[i] : info->vertexOffset;
-		vk::Cast(commandBuffer)->drawIndexed(info->indexCount, instanceCount, info->firstIndex, vertexOffset, firstInstance);
-	}
+    const uint32_t effectiveStride =
+        (stride == 0) ? sizeof(VkMultiDrawIndexedInfoEXT) : stride;
+
+    const uint8_t *indexInfo =
+        reinterpret_cast<const uint8_t *>(pIndexInfo);
+
+    for(uint32_t i = 0; i < drawCount; i++)
+    {
+        const auto *info =
+            reinterpret_cast<const VkMultiDrawIndexedInfoEXT *>(
+                indexInfo + i * effectiveStride);
+
+        const int32_t vertexOffset =
+            pVertexOffset ? pVertexOffset[i] : info->vertexOffset;
+
+        vk::Cast(commandBuffer)->drawIndexed(
+            info->indexCount,
+            instanceCount,
+            info->firstIndex,
+            vertexOffset,
+            firstInstance);
+    }
 }
 
 VKAPI_ATTR void VKAPI_CALL vkCmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
