@@ -110,52 +110,59 @@ VkResult Win32SurfaceKHR::present(PresentImage *image)
 	void *bits = image->getImage()->getTexelPointer({ 0, 0, 0 }, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0 });
 
     static const bool useFastGDIPath = [] {
-        const char *opt =
-            std::getenv("SWIFTSHADER_VK_WIN32_GDI_FASTPATH");
+        const char *opt = std::getenv("SWIFTSHADER_VK_WIN32_GDI_FASTPATH");
 
         // Usa a cópia direta por padrão.
         // Para voltar ao modo compatível, defina a variável como 0.
         return !opt || (std::strcmp(opt, "0") != 0);
     }();
 
-    const int tightlyPackedStride =
-        static_cast<int>(extent.width) * bytesPerPixel;
+    // A DIB row pitch is derived from biWidth and rounded up to 4 bytes.
+    // Use the direct GDI transfer when that pitch exactly matches the image,
+    // including rows with compatible padding.
+    const int dibWidth = (bytesPerPixel > 0 && stride > 0 &&
+                          stride % bytesPerPixel == 0)
+                             ? stride / bytesPerPixel
+                             : 0;
+    const int dibStride = (dibWidth > 0)
+                              ? ((dibWidth * bytesPerPixel + 3) / 4) * 4
+                              : 0;
 
-    if(useFastGDIPath && (stride == tightlyPackedStride))
+    if(useFastGDIPath && dibWidth >= static_cast<int>(extent.width) &&
+       dibStride == stride)
     {
-    bitmapInfo.bmiHeader.biWidth = extent.width;
-
-    SetDIBitsToDevice(
-        windowContext,
-        0,
-        0,
-        extent.width,
-        extent.height,
-        0,
-        0,
-        0,
-        extent.height,
-        bits,
-        &bitmapInfo,
-        DIB_RGB_COLORS);
-}
-else
-{
-    StretchDIBits(
-        windowContext,
-        0,
-        0,
-        extent.width,
-        extent.height,
-        0,
-        0,
-        extent.width,
-        extent.height,
-        bits,
-        &bitmapInfo,
-        DIB_RGB_COLORS,
-        SRCCOPY);
-}
+        bitmapInfo.bmiHeader.biWidth = dibWidth;
+        SetDIBitsToDevice(
+            windowContext,
+            0,
+            0,
+            extent.width,
+            extent.height,
+            0,
+            0,
+            0,
+            extent.height,
+            bits,
+            &bitmapInfo,
+            DIB_RGB_COLORS);
+    }
+    else
+    {
+        StretchDIBits(
+            windowContext,
+            0,
+            0,
+            extent.width,
+            extent.height,
+            0,
+            0,
+            extent.width,
+            extent.height,
+            bits,
+            &bitmapInfo,
+            DIB_RGB_COLORS,
+            SRCCOPY);
+    }
 
 	return VK_SUCCESS;
 }
