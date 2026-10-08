@@ -22,6 +22,7 @@ if (supports_llvm) {
       "//base/test:test_support",
       "//testing/gmock",
       "//testing/gtest",
+      "//third_party/googletest:gtest",
       "//third_party/swiftshader/src/Reactor:swiftshader_llvm_reactor",
     ]
 
@@ -33,9 +34,7 @@ if (supports_llvm) {
       "ReactorUnitTests.cpp",
     ]
 
-    include_dirs = [
-      "../../src/Reactor"
-    ]
+    include_dirs = [ "../../src/Reactor" ]
   }
 }
 
@@ -46,6 +45,7 @@ if (supports_subzero) {
       "//base/test:test_support",
       "//testing/gmock",
       "//testing/gtest",
+      "//third_party/googletest:gtest",
       "//third_party/swiftshader/src/Reactor:swiftshader_subzero_reactor",
     ]
 
@@ -57,8 +57,6 @@ if (supports_subzero) {
       "ReactorUnitTests.cpp",
     ]
 
-    include_dirs = [
-      "../../src/Reactor"
-    ]
+    include_dirs = [ "../../src/Reactor" ]
   }
 }
